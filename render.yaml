@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: samaservice-api
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    healthCheckPath: /api/metadonnees
+    envVars:
+      - key: DATABASE_URL
+        sync: false

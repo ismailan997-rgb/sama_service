@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "SamaService Dakar",
+  "short_name": "SamaService",
+  "description": "Trouvez un artisan près de chez vous et demandez une intervention à Dakar.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#047857",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

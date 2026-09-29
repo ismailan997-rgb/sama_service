@@ -1,0 +1,10 @@
+node_modules/
+.venv/
+venv/
+mobile/www/
+__pycache__/
+*.py[cod]
+*.db
+.env
+.env.*
+!.env.example

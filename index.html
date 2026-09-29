@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full bg-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SamaService">
+    <meta name="theme-color" content="#047857">
+    <meta name="description" content="Trouvez un artisan près de chez vous et demandez une intervention à Dakar.">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/static/icon.svg">
+    <title>SamaService - Artisans & Dépannage Dakar</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome 6 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Fonts Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="/static/mobile-config.js"></script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* Masquer la scrollbar tout en permettant le scroll horizontal */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #f8fafc;
+            box-shadow: 0 0 40px rgba(0,0,0,0.06);
+        }
+        .safe-bottom {
+            padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+        }
+    </style>
+</head>
+<body class="bg-slate-200 text-slate-800 antialiased selection:bg-emerald-500 selection:text-white">
+
+    <div class="app-container relative">
+
+        <!-- ==================== APP HEADER ==================== -->
+        <header class="bg-gradient-to-r from-emerald-700 via-emerald-600 to-teal-700 text-white pt-4 pb-3 px-4 sticky top-0 z-40 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center space-x-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-300 font-extrabold shadow-inner text-lg border border-white/20">
+                        <i class="fa-solid fa-wrench"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-black tracking-tight leading-none flex items-center gap-1.5">
+                            SamaService
+                            <span class="text-[10px] bg-amber-400 text-emerald-950 font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">Dakar</span>
+                        </h1>
+                        <p class="text-[11px] text-emerald-100 font-medium">Mise en relation directe & rapide</p>
+                    </div>
+                </div>
+
+                <!-- Sélecteur de Quartier Dakar -->
+                <div class="relative">
+                    <button onclick="ouvrirSelecteurQuartier()" class="flex items-center gap-1 bg-white/15 hover:bg-white/25 backdrop-blur-md text-white px-2.5 py-1.5 rounded-full text-xs font-semibold border border-white/20 transition active:scale-95">
+                        <i class="fa-solid fa-location-dot text-amber-300 text-[11px]"></i>
+                        <span id="label-quartier-actif" class="max-w-[100px] truncate">Tout Dakar</span>
+                        <i class="fa-solid fa-chevron-down text-[9px] opacity-75"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Barre de recherche App -->
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input 
+                    type="text" 
+                    id="input-recherche" 
+                    oninput="filtrerServices()"
+                    placeholder="Mécanicien, vidange, clim, plombier..." 
+                    class="w-full pl-9 pr-8 py-2.5 rounded-xl bg-white text-slate-900 placeholder:text-slate-400 text-xs font-medium shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                >
+                <button id="btn-clear-search" onclick="effacerRecherche()" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-circle-xmark text-xs"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- ==================== CONTENU PRINCIPAL ==================== -->
+        <main class="flex-1 safe-bottom overflow-y-auto">
+
+            <!-- ================= ONGLET 1 : EXPLORER (CLIENT) ================= -->
+            <section id="view-explorer" class="space-y-4 pt-3">
+                
+                <!-- Carrousel Catégories Métiers Dakar -->
+                <div class="px-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-slate-700 uppercase tracking-wider">Métiers d'artisans</span>
+                        <span id="compteur-services" class="text-[11px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">... services</span>
+                    </div>
+
+                    <div class="flex gap-2 overflow-x-auto no-scrollbar py-1" id="categories-scroll">
+                        <button onclick="selectionnerMetier('Tous')" class="cat-pill active flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm transition active:scale-95">
+                            <i class="fa-solid fa-border-all"></i>
+                            <span>Tous</span>
+                        </button>
+                        <button onclick="selectionnerMetier('Mécanicien Auto / Moto')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
+                            <span>🚗</span>
+                            <span>Mécanique</span>
+                        </button>
+                        <button onclick="selectionnerMetier('Plombier')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
+                            <span>🔧</span>
+                            <span>Plomberie</span>
+                        </button>
+                        <button onclick="selectionnerMetier('Électricien')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
+                            <span>⚡</span>
+                            <span>Électricité</span>
+                        </button>
+                        <button onclick="selectionnerMetier('Climatisation / Froid')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
+                            <span>❄️</span>
+                            <span>Froid & Clim</span>
+                        </button>
+                        <button onclick="selectionnerMetier('Menuisier Bois / Aluminium')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
+                            <span>🪚</span>
+                            <span>Menuiserie</span>
+                        </button>
+                        <button onclick="selectionnerMetier('Peintre en Bâtiment')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
+                            <span>🎨</span>
+                            <span>Peinture</span>
+                        </button>
+                        <button onclick="selectionnerMetier('Serrurier')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
+                            <span>🔑</span>
+                            <span>Serrurerie</span>
+                        </button>
+                        <button onclick="selectionnerMetier('Nettoyage & Débouchage')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
+                            <span>🧹</span>
+                            <span>Nettoyage</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bannière d'intervention d'urgence -->
+                <div class="px-4">
+                    <div class="bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-3.5 text-white shadow-sm flex items-center justify-between">
+                        <div class="space-y-0.5">
+                            <span class="text-[10px] uppercase font-extrabold bg-black/20 px-2 py-0.5 rounded-full tracking-wider">Dépannage Express Dakar</span>
+                            <h3 class="text-xs font-extrabold">Besoin d'un artisan en urgence ?</h3>
+                            <p class="text-[11px] text-amber-100">Contactez directement par WhatsApp ou appel gratuit.</p>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-lg flex-shrink-0">
+                            <i class="fa-solid fa-bolt-lightning text-amber-200 animate-pulse"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Liste des services disponibles -->
+                <div class="px-4 space-y-3" id="liste-services">
+                    <!-- Rempli par JavaScript -->
+                    <div class="text-center py-10 text-slate-400">
+                        <i class="fa-solid fa-circle-notch fa-spin text-2xl text-emerald-600"></i>
+                        <p class="text-xs mt-2 font-medium">Chargement des artisans disponibles...</p>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ================= ONGLET 2 : ESPACE ARTISAN ================= -->
+            <section id="view-artisan" class="space-y-4 pt-3 hidden px-4">
+                
+                <!-- Zone Non Connecté (Connexion / Inscription) -->
+                <div id="artisan-auth" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-5 space-y-5">
+                    <div class="text-center space-y-1">
+                        <div class="w-12 h-12 mx-auto rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center text-xl font-bold">
+                            <i class="fa-solid fa-id-card-clip"></i>
+                        </div>
+                        <h2 class="text-base font-extrabold text-slate-800">Espace Professionnel</h2>
+                        <p class="text-xs text-slate-500">Rejoignez le réseau d'artisans SamaService à Dakar</p>
+                    </div>
+
+                    <!-- Onglets Connexion / Inscription -->
+                    <div class="flex bg-slate-100 p-1 rounded-xl text-xs font-bold">
+                        <button onclick="toggleAuthTab('login')" id="tab-login" class="flex-1 py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition">Se connecter</button>
+                        <button onclick="toggleAuthTab('register')" id="tab-register" class="flex-1 py-2 rounded-lg text-slate-500 transition">Créer un compte</button>
+                    </div>
+
+                    <!-- Formulaire Connexion -->
+                    <form id="form-login" onsubmit="connexion(event)" class="space-y-3.5">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Numéro de téléphone</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">+221</span>
+                                <input type="tel" id="login-tel" required placeholder="77 123 45 67" class="w-full pl-14 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Mot de passe</label>
+                            <input type="password" id="login-pass" required placeholder="••••••••" class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition">
+                            Accéder à mon atelier
+                        </button>
+                    </form>
+
+                    <!-- Formulaire Inscription -->
+                    <form id="form-register" onsubmit="inscription(event)" class="space-y-3.5 hidden">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Nom / Nom de l'atelier</label>
+                            <input type="text" id="reg-nom" required placeholder="Ex: Modou Fall Dépannage" class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Téléphone Orange / Free / Expresso</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">+221</span>
+                                <input type="tel" id="reg-tel" required placeholder="77 123 45 67" class="w-full pl-14 pr-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Métier principal</label>
+                            <select id="reg-metier" required class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                                <option value="Mécanicien Auto / Moto">🚗 Mécanicien Auto / Moto</option>
+                                <option value="Plombier">🔧 Plombier</option>
+                                <option value="Électricien">⚡ Électricien</option>
+                                <option value="Climatisation / Froid">❄️ Climatisation / Froid</option>
+                                <option value="Menuisier Bois / Aluminium">🪚 Menuisier Bois / Aluminium</option>
+                                <option value="Peintre en Bâtiment">🎨 Peintre en Bâtiment</option>
+                                <option value="Serrurier">🔑 Serrurier</option>
+                                <option value="Nettoyage & Débouchage">🧹 Nettoyage & Débouchage</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Quartier ou Commune à Dakar</label>
+                            <select id="reg-quartier" required class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+                                <!-- Rempli dynamiquement -->
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1">Créer un mot de passe</label>
+                            <input type="password" id="reg-pass" required placeholder="Au moins 4 caractères" class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+
+                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition">
+                            Créer mon profil Artisan
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Zone Connecté (Dashboard Artisan) -->
+                <div id="artisan-dashboard" class="space-y-4 hidden">
+                    
+                    <!-- Carte Profil Artisan -->
+                    <div class="bg-gradient-to-br from-emerald-800 to-teal-900 rounded-2xl p-4 text-white shadow-sm relative overflow-hidden">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl font-bold border border-white/20 text-amber-300">
+                                    <i class="fa-solid fa-user-check"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <h2 class="text-sm font-extrabold text-white" id="dash-nom">Artisan Pro</h2>
+                                        <span class="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded font-bold">Vérifié</span>
+                                    </div>
+                                    <p class="text-xs text-emerald-200" id="dash-metier">Métier</p>
+                                    <p class="text-[11px] text-white/70" id="dash-quartier">📍 Dakar</p>
+                                </div>
+                            </div>
+                            <button onclick="deconnexion()" title="Se déconnecter" class="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-2.5 py-1.5 rounded-xl text-xs font-bold transition">
+                                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                            </button>
+                        </div>
+
+                        <div class="mt-4 pt-3 border-t border-white/15 grid grid-cols-2 gap-2 text-center">
+                            <div class="bg-white/10 rounded-xl p-2">
+                                <span class="text-lg font-black text-white" id="stat-demandes">0</span>
+                                <p class="text-[10px] text-emerald-200 font-semibold">Demandes reçues</p>
+                            </div>
+                            <div class="bg-white/10 rounded-xl p-2">
+                                <span class="text-lg font-black text-white" id="stat-services">0</span>
+                                <p class="text-[10px] text-emerald-200 font-semibold">Services en ligne</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sous-onglets Artisan (Demandes reçues / Mes Services / Publier) -->
+                    <div class="flex bg-slate-200 p-1 rounded-xl text-xs font-bold">
+                        <button onclick="switchArtisanTab('demandes')" id="subtab-demandes" class="flex-1 py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition">
+                            <i class="fa-solid fa-inbox mr-1"></i> Demandes
+                        </button>
+                        <button onclick="switchArtisanTab('publier')" id="subtab-publier" class="flex-1 py-2 rounded-lg text-slate-600 transition">
+                            <i class="fa-solid fa-plus-circle mr-1"></i> Publier
+                        </button>
+                        <button onclick="switchArtisanTab('services')" id="subtab-services" class="flex-1 py-2 rounded-lg text-slate-600 transition">
+                            <i class="fa-solid fa-list-check mr-1"></i> Mes Offres
+                        </button>
+                    </div>
+
+                    <!-- 1. Liste des demandes reçues -->
+                    <div id="artisan-section-demandes" class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Demandes de clients</h3>
+                            <button onclick="chargerMesDemandes()" class="text-xs text-emerald-600 font-bold hover:underline">
+                                <i class="fa-solid fa-rotate-right"></i> Actualiser
+                            </button>
+                        </div>
+                        <div id="container-mes-demandes" class="space-y-2.5"></div>
+                    </div>
+
+                    <!-- 2. Formulaire de publication -->
+                    <div id="artisan-section-publier" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 space-y-3 hidden">
+                        <h3 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Ajouter une nouvelle prestation</h3>
+                        <form onsubmit="publierService(event)" class="space-y-3">
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-1">Titre de la prestation</label>
+                                <input type="text" id="serv-titre" required placeholder="Ex: Réparation fuite d'eau, Dépannage démarreur..." class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-1">Description détaillée</label>
+                                <textarea id="serv-desc" rows="3" required placeholder="Précisez ce que comprend votre intervention, votre matériel, votre zone de déplacement..." class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-[11px] font-bold text-slate-600 mb-1">Tarif indicatif (FCFA)</label>
+                                <input type="text" id="serv-tarif" placeholder="Ex: 5 000 FCFA ou Sur devis" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            </div>
+                            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-emerald-600/20 active:scale-95 transition">
+                                <i class="fa-solid fa-upload mr-1"></i> Mettre en ligne immédiatement
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- 3. Liste de mes offres publiées -->
+                    <div id="artisan-section-services" class="space-y-3 hidden">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Mes offres en ligne</h3>
+                        </div>
+                        <div id="container-mes-services" class="space-y-2.5"></div>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <!-- ================= ONGLET 3 : A PROPOS & AIDE ================= -->
+            <section id="view-aide" class="space-y-4 pt-3 hidden px-4">
+                <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200/80 space-y-4 text-center">
+                    <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center text-2xl font-black">
+                        <i class="fa-solid fa-handshake-simple"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <h2 class="text-base font-extrabold text-slate-800">SamaService Dakar</h2>
+                        <p class="text-xs text-slate-500">L'application communautaire pour trouver et contacter les meilleurs artisans locaux à Dakar.</p>
+                    </div>
+
+                    <div class="text-left space-y-2.5 pt-2">
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-xl">
+                            <span class="text-emerald-600 text-base font-bold"><i class="fa-solid fa-comments"></i></span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800">Contact direct sans intermédiaire</h4>
+                                <p class="text-[11px] text-slate-500">Discutez immédiatement sur WhatsApp ou téléphonez à l'artisan sans commission.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-xl">
+                            <span class="text-emerald-600 text-base font-bold"><i class="fa-solid fa-money-bill-wave"></i></span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800">Paiements locaux</h4>
+                                <p class="text-[11px] text-slate-500">Payez votre artisan directement par Wave, Orange Money ou espèces selon vos accords.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 p-3 bg-slate-50 rounded-xl">
+                            <span class="text-emerald-600 text-base font-bold"><i class="fa-solid fa-shield-halved"></i></span>
+                            <div>
+                                <h4 class="text-xs font-bold text-slate-800">Artisans de proximité</h4>
+                                <p class="text-[11px] text-slate-500">Filtrez les professionnels disponibles dans votre quartier pour une intervention rapide.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-2">
+                        <a href="https://wa.me/221770000000?text=Salam%20Support%20SamaService" target="_blank" class="inline-flex items-center justify-center gap-2 w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs">
+                            <i class="fa-brands fa-whatsapp text-sm"></i>
+                            Contacter le support Dakar
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- ==================== BOTTOM TAB BAR (STYLE NATIVE APP) ==================== -->
+        <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 py-2">
+            <div class="max-w-[480px] mx-auto px-6 flex justify-around items-center">
+                
+                <button onclick="naviguerVers('explorer')" id="tab-nav-explorer" class="flex flex-col items-center gap-1 text-emerald-600 font-extrabold transition active:scale-95">
+                    <i class="fa-solid fa-compass text-lg"></i>
+                    <span class="text-[10px]">Explorer</span>
+                </button>
+
+                <button onclick="naviguerVers('artisan')" id="tab-nav-artisan" class="flex flex-col items-center gap-1 text-slate-400 font-semibold hover:text-slate-600 transition active:scale-95 relative">
+                    <i class="fa-solid fa-briefcase text-lg"></i>
+                    <span class="text-[10px]">Espace Pro</span>
+                    <span id="badge-demandes-count" class="hidden absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] font-black flex items-center justify-center">0</span>
+                </button>
+
+                <button onclick="naviguerVers('aide')" id="tab-nav-aide" class="flex flex-col items-center gap-1 text-slate-400 font-semibold hover:text-slate-600 transition active:scale-95">
+                    <i class="fa-solid fa-circle-question text-lg"></i>
+                    <span class="text-[10px]">Aide</span>
+                </button>
+
+            </div>
+        </nav>
+
+        <!-- ==================== MODAL COMMANDE SERVICE ==================== -->
+        <div id="modal-demande" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center hidden p-0 sm:p-4 transition-all">
+            <div class="bg-white w-full max-w-[460px] rounded-t-3xl sm:rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <div>
+                        <span class="text-[10px] uppercase font-extrabold text-emerald-600">Commander une prestation</span>
+                        <h3 class="text-sm font-extrabold text-slate-900" id="modal-service-titre">Titre Service</h3>
+                    </div>
+                    <button onclick="fermerModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+
+                <form onsubmit="envoyerDemande(event)" class="space-y-3">
+                    <input type="hidden" id="modal-service-id">
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Votre Nom & Prénom</label>
+                        <input type="text" id="cli-nom" required placeholder="Ex: Aminata Diop" class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Votre Numéro de téléphone</label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">+221</span>
+                            <input type="tel" id="cli-tel" required placeholder="77 / 78 / 76 ..." class="w-full pl-14 pr-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Détails de votre besoin ou panne</label>
+                        <textarea id="cli-desc" rows="3" required placeholder="Ex: Voiture en panne de batterie à Ouakam, dispo dès 14h..." class="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"></textarea>
+                    </div>
+
+                    <div class="pt-2 flex gap-2">
+                        <button type="button" onclick="fermerModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-xs font-bold">Annuler</button>
+                        <button type="submit" class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20">Envoyer ma demande</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ==================== MODAL SELECTEUR DE QUARTIER ==================== -->
+        <div id="modal-quartiers" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center hidden p-0 sm:p-4">
+            <div class="bg-white w-full max-w-[460px] rounded-t-3xl sm:rounded-2xl p-5 space-y-3 max-h-[80vh] flex flex-col">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <h3 class="text-sm font-extrabold text-slate-900">Choisir un quartier à Dakar</h3>
+                    <button onclick="fermerModalQuartier()" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
+                        <i class="fa-solid fa-xmark text-sm"></i>
+                    </button>
+                </div>
+                
+                <div class="overflow-y-auto no-scrollbar space-y-1.5 flex-1 pr-1" id="liste-selection-quartiers">
+                    <!-- Rempli en JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== NOTIFICATION TOAST ==================== -->
+        <div id="app-toast" class="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900/90 backdrop-blur-md text-white px-4 py-2.5 rounded-full text-xs font-bold shadow-xl border border-white/10 hidden items-center gap-2 transition-all">
+            <i id="toast-icon" class="fa-solid fa-check text-emerald-400"></i>
+            <span id="toast-message">Message</span>
+        </div>
+
+    </div>
+
+    <!-- ==================== LOGIQUE JAVASCRIPT ==================== -->
+    <script>
+        const API_URL = (window.SAMASERVICE_API_URL || "/api").replace(/\/+$/, "");
+        
+        // État de l'application
+        let artisanConnecte = JSON.parse(localStorage.getItem('samaservice_artisan')) || null;
+        let tousLesServices = [];
+        let metierSelectionne = 'Tous';
+        let quartierSelectionne = 'Tous';
+        let listeQuartiersDakar = [];
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!window.SAMASERVICE_IS_NATIVE && 'serviceWorker' in navigator && ['http:', 'https:'].includes(window.location.protocol)) {
+                navigator.serviceWorker.register('/service-worker.js').catch(error => {
+                    console.warn('Service worker non disponible :', error);
+                });
+            }
+            await chargerMetadonnees();
+            await chargerServices();
+            verifierSession();
+        });
+
+        // Navigation principale (Style App)
+        function naviguerVers(tab) {
+            const vExplorer = document.getElementById('view-explorer');
+            const vArtisan = document.getElementById('view-artisan');
+            const vAide = document.getElementById('view-aide');
+
+            const btnExp = document.getElementById('tab-nav-explorer');
+            const btnArt = document.getElementById('tab-nav-artisan');
+            const btnAid = document.getElementById('tab-nav-aide');
+
+            // Reset visibilité
+            vExplorer.classList.add('hidden');
+            vArtisan.classList.add('hidden');
+            vAide.classList.add('hidden');
+
+            btnExp.className = "flex flex-col items-center gap-1 text-slate-400 font-semibold hover:text-slate-600 transition active:scale-95";
+            btnArt.className = "flex flex-col items-center gap-1 text-slate-400 font-semibold hover:text-slate-600 transition active:scale-95 relative";
+            btnAid.className = "flex flex-col items-center gap-1 text-slate-400 font-semibold hover:text-slate-600 transition active:scale-95";
+
+            if (tab === 'explorer') {
+                vExplorer.classList.remove('hidden');
+                btnExp.className = "flex flex-col items-center gap-1 text-emerald-600 font-extrabold transition active:scale-95";
+                chargerServices();
+            } else if (tab === 'artisan') {
+                vArtisan.classList.remove('hidden');
+                btnArt.className = "flex flex-col items-center gap-1 text-emerald-600 font-extrabold transition active:scale-95 relative";
+                verifierSession();
+            } else if (tab === 'aide') {
+                vAide.classList.remove('hidden');
+                btnAid.className = "flex flex-col items-center gap-1 text-emerald-600 font-extrabold transition active:scale-95";
+            }
+        }
+
+        // Chargement des métadonnées (quartiers et métiers)
+        async function chargerMetadonnees() {
+            try {
+                const res = await fetch(`${API_URL}/metadonnees`);
+                const data = await res.json();
+                listeQuartiersDakar = data.quartiers || [];
+                
+                // Remplir le select d'inscription
+                const regQuartierSelect = document.getElementById('reg-quartier');
+                if (regQuartierSelect) {
+                    regQuartierSelect.innerHTML = listeQuartiersDakar.map(q => `<option value="${q}">${q}</option>`).join('');
+                }
+
+                // Préparer la liste du modal quartier
+                const modalListe = document.getElementById('liste-selection-quartiers');
+                if (modalListe) {
+                    let html = `
+                        <button onclick="selectionnerQuartier('Tous')" class="w-full text-left p-3 rounded-xl font-bold text-xs flex items-center justify-between ${quartierSelectionne === 'Tous' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-700'}">
+                            <span>Tout Dakar (Tous les quartiers)</span>
+                            ${quartierSelectionne === 'Tous' ? '<i class="fa-solid fa-check text-emerald-600"></i>' : ''}
+                        </button>
+                    `;
+                    html += listeQuartiersDakar.map(q => `
+                        <button onclick="selectionnerQuartier('${q}')" class="w-full text-left p-3 rounded-xl font-semibold text-xs flex items-center justify-between hover:bg-slate-100 ${quartierSelectionne === q ? 'bg-emerald-50 text-emerald-700 font-bold' : 'bg-slate-50 text-slate-700'}">
+                            <span>📍 ${q}</span>
+                            ${quartierSelectionne === q ? '<i class="fa-solid fa-check text-emerald-600"></i>' : ''}
+                        </button>
+                    `).join('');
+                    modalListe.innerHTML = html;
+                }
+            } catch (e) {
+                console.warn("Impossible de charger les métadonnées :", e);
+            }
+        }
+
+        function ouvrirSelecteurQuartier() {
+            document.getElementById('modal-quartiers').classList.remove('hidden');
+        }
+
+        function fermerModalQuartier() {
+            document.getElementById('modal-quartiers').classList.add('hidden');
+        }
+
+        function selectionnerQuartier(q) {
+            quartierSelectionne = q;
+            document.getElementById('label-quartier-actif').innerText = q === 'Tous' ? 'Tout Dakar' : q;
+            fermerModalQuartier();
+            chargerMetadonnees(); // Rafraîchit les coches
+            chargerServices();
+        }
+
+        // Filtre de métiers
+        function selectionnerMetier(metier) {
+            metierSelectionne = metier;
+            // Met à jour l'apparence des boutons de catégories
+            const buttons = document.querySelectorAll('.cat-pill');
+            buttons.forEach(btn => {
+                if (btn.innerText.includes(metier) || (metier === 'Tous' && btn.innerText.includes('Tous'))) {
+                    btn.className = "cat-pill active flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm transition active:scale-95";
+                } else {
+                    btn.className = "cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95";
+                }
+            });
+            chargerServices();
+        }
+
+        // Recherche en direct
+        function filtrerServices() {
+            const query = document.getElementById('input-recherche').value.trim();
+            const btnClear = document.getElementById('btn-clear-search');
+            if (query.length > 0) {
+                btnClear.classList.remove('hidden');
+            } else {
+                btnClear.classList.add('hidden');
+            }
+            chargerServices();
+        }
+
+        function effacerRecherche() {
+            document.getElementById('input-recherche').value = '';
+            document.getElementById('btn-clear-search').classList.add('hidden');
+            chargerServices();
+        }
+
+        // Chargement des services avec filtres
+        async function chargerServices() {
+            const container = document.getElementById('liste-services');
+            const q = document.getElementById('input-recherche').value.trim();
+
+            const params = new URLSearchParams();
+            if (metierSelectionne !== 'Tous') params.append('metier', metierSelectionne);
+            if (quartierSelectionne !== 'Tous') params.append('quartier', quartierSelectionne);
+            if (q) params.append('q', q);
+
+            try {
+                const res = await fetch(`${API_URL}/services?${params.toString()}`);
+                const json = await res.json();
+                tousLesServices = json.data || [];
+
+                document.getElementById('compteur-services').innerText = `${tousLesServices.length} prestation${tousLesServices.length > 1 ? 's' : ''}`;
+
+                if (tousLesServices.length === 0) {
+                    container.innerHTML = `
+                        <div class="bg-white rounded-2xl p-8 text-center border border-slate-200 space-y-2">
+                            <div class="w-12 h-12 mx-auto rounded-full bg-slate-100 flex items-center justify-center text-slate-400 text-xl">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </div>
+                            <h4 class="text-xs font-bold text-slate-700">Aucun artisan trouvé</h4>
+                            <p class="text-[11px] text-slate-500">Essayez de changer de quartier ou de catégorie de métier.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = tousLesServices.map(s => {
+                    const waNum = nettoyerNumeroSenegal(s.telephone_artisan);
+                    const waMsg = encodeURIComponent(`Salam ${s.nom_artisan}, j'ai vu votre prestation "${s.titre_service}" sur l'application SamaService. Êtes-vous disponible ?`);
+                    const waUrl = `https://wa.me/${waNum}?text=${waMsg}`;
+
+                    return `
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 space-y-3 transition hover:border-emerald-500">
+                            <!-- En-tête artisan -->
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2.5">
+                                    <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-extrabold">
+                                        ${s.nom_artisan.substring(0, 2).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <h4 class="text-xs font-bold text-slate-900 flex items-center gap-1">
+                                            ${s.nom_artisan}
+                                            <i class="fa-solid fa-circle-check text-emerald-600 text-[10px]" title="Artisan vérifié"></i>
+                                        </h4>
+                                        <div class="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
+                                            <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-semibold">${s.metier}</span>
+                                            <span>•</span>
+                                            <span>📍 ${s.quartier}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xs font-extrabold text-emerald-700 block">${s.tarif_indicatif || 'Sur devis'}</span>
+                                    <span class="text-[9px] text-amber-500 font-bold"><i class="fa-solid fa-star"></i> 5.0</span>
+                                </div>
+                            </div>
+
+                            <!-- Contenu prestation -->
+                            <div>
+                                <h3 class="text-xs font-extrabold text-slate-800">${s.titre_service}</h3>
+                                <p class="text-[11px] text-slate-600 leading-relaxed mt-0.5">${s.description_service}</p>
+                            </div>
+
+                            <!-- Boutons d'action rapides -->
+                            <div class="pt-1 flex items-center gap-2">
+                                <button onclick="ouvrirModalDemande(${s.id}, '${s.titre_service.replace(/'/g, "\\'")}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition">
+                                    <i class="fa-solid fa-paper-plane text-[10px]"></i>
+                                    Commander
+                                </button>
+                                
+                                <a href="${waUrl}" target="_blank" class="w-9 h-9 rounded-xl bg-green-500 hover:bg-green-600 text-white flex items-center justify-center text-sm shadow-sm active:scale-95 transition" title="WhatsApp direct">
+                                    <i class="fa-brands fa-whatsapp"></i>
+                                </a>
+
+                                <a href="tel:+${waNum}" class="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-sm active:scale-95 transition" title="Appeler directement">
+                                    <i class="fa-solid fa-phone"></i>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (e) {
+                container.innerHTML = `
+                    <div class="bg-red-50 text-red-700 rounded-2xl p-4 text-center text-xs">
+                        Impossible de charger les prestations. Vérifiez que l'application tourne bien.
+                    </div>
+                `;
+            }
+        }
+
+        // Nettoyage et formatage du numéro pour le Sénégal (221...)
+        function nettoyerNumeroSenegal(tel) {
+            if (!tel) return '221770000000';
+            let num = tel.replace(/[^0-9]/g, '');
+            if (num.startsWith('221')) return num;
+            if (num.startsWith('00221')) return num.substring(2);
+            return '221' + num;
+        }
+
+        // Modal Demande
+        function ouvrirModalDemande(id, titre) {
+            document.getElementById('modal-service-id').value = id;
+            document.getElementById('modal-service-titre').innerText = titre;
+            document.getElementById('modal-demande').classList.remove('hidden');
+        }
+
+        function fermerModal() {
+            document.getElementById('modal-demande').classList.add('hidden');
+        }
+
+        async function envoyerDemande(e) {
+            e.preventDefault();
+            const serviceId = document.getElementById('modal-service-id').value;
+            const nom = document.getElementById('cli-nom').value.trim();
+            const tel = document.getElementById('cli-tel').value.trim();
+            const besoin = document.getElementById('cli-desc').value.trim();
+
+            try {
+                const res = await fetch(`${API_URL}/demandes`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        service_id: serviceId,
+                        nom_client: nom,
+                        telephone_client: tel,
+                        description_besoin: besoin
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    fermerModal();
+                    document.getElementById('cli-nom').value = '';
+                    document.getElementById('cli-tel').value = '';
+                    document.getElementById('cli-desc').value = '';
+                    afficherToast("Votre demande a été transmise à l'artisan !");
+                } else {
+                    alert(data.message || "Erreur lors de l'envoi");
+                }
+            } catch (err) {
+                alert("Erreur de connexion au serveur.");
+            }
+        }
+
+        // --- GESTION DE L'ESPACE ARTISAN ---
+        function toggleAuthTab(tab) {
+            const formLogin = document.getElementById('form-login');
+            const formReg = document.getElementById('form-register');
+            const tabLog = document.getElementById('tab-login');
+            const tabReg = document.getElementById('tab-register');
+
+            if (tab === 'login') {
+                formLogin.classList.remove('hidden');
+                formReg.classList.add('hidden');
+                tabLog.className = "flex-1 py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition";
+                tabReg.className = "flex-1 py-2 rounded-lg text-slate-500 transition";
+            } else {
+                formLogin.classList.add('hidden');
+                formReg.classList.remove('hidden');
+                tabReg.className = "flex-1 py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition";
+                tabLog.className = "flex-1 py-2 rounded-lg text-slate-500 transition";
+            }
+        }
+
+        function verifierSession() {
+            const zoneAuth = document.getElementById('artisan-auth');
+            const zoneDash = document.getElementById('artisan-dashboard');
+
+            if (artisanConnecte) {
+                zoneAuth.classList.add('hidden');
+                zoneDash.classList.remove('hidden');
+
+                document.getElementById('dash-nom').innerText = artisanConnecte.nom;
+                document.getElementById('dash-metier').innerText = artisanConnecte.metier;
+                document.getElementById('dash-quartier').innerText = `📍 ${artisanConnecte.quartier} (${artisanConnecte.telephone})`;
+
+                chargerMesDemandes();
+                chargerMesServices();
+            } else {
+                zoneAuth.classList.remove('hidden');
+                zoneDash.classList.add('hidden');
+            }
+        }
+
+        async function connexion(e) {
+            e.preventDefault();
+            const tel = document.getElementById('login-tel').value.trim();
+            const pass = document.getElementById('login-pass').value;
+
+            try {
+                const res = await fetch(`${API_URL}/artisan/connexion`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ telephone: tel, mot_de_passe: pass })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    artisanConnecte = data.artisan;
+                    localStorage.setItem('samaservice_artisan', JSON.stringify(artisanConnecte));
+                    verifierSession();
+                    afficherToast(`Bienvenue, ${artisanConnecte.nom} !`);
+                } else {
+                    alert(data.message || "Identifiants incorrects.");
+                }
+            } catch (err) {
+                alert("Erreur réseau. Vérifiez que Flask est lancé.");
+            }
+        }
+
+        async function inscription(e) {
+            e.preventDefault();
+            const nom = document.getElementById('reg-nom').value.trim();
+            const tel = document.getElementById('reg-tel').value.trim();
+            const metier = document.getElementById('reg-metier').value;
+            const quartier = document.getElementById('reg-quartier').value;
+            const pass = document.getElementById('reg-pass').value;
+
+            try {
+                const res = await fetch(`${API_URL}/artisan/inscription`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        nom: nom,
+                        telephone: tel,
+                        metier: metier,
+                        quartier: quartier,
+                        mot_de_passe: pass
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    artisanConnecte = data.artisan;
+                    localStorage.setItem('samaservice_artisan', JSON.stringify(artisanConnecte));
+                    verifierSession();
+                    afficherToast("Compte créé avec succès !");
+                } else {
+                    alert(data.message || "Erreur lors de l'inscription.");
+                }
+            } catch (err) {
+                alert("Erreur réseau.");
+            }
+        }
+
+        function deconnexion() {
+            localStorage.removeItem('samaservice_artisan');
+            artisanConnecte = null;
+            verifierSession();
+            afficherToast("Vous avez été déconnecté.");
+        }
+
+        function switchArtisanTab(tab) {
+            const secDem = document.getElementById('artisan-section-demandes');
+            const secPub = document.getElementById('artisan-section-publier');
+            const secSer = document.getElementById('artisan-section-services');
+
+            const tabDem = document.getElementById('subtab-demandes');
+            const tabPub = document.getElementById('subtab-publier');
+            const tabSer = document.getElementById('subtab-services');
+
+            secDem.classList.add('hidden');
+            secPub.classList.add('hidden');
+            secSer.classList.add('hidden');
+
+            tabDem.className = "flex-1 py-2 rounded-lg text-slate-600 transition";
+            tabPub.className = "flex-1 py-2 rounded-lg text-slate-600 transition";
+            tabSer.className = "flex-1 py-2 rounded-lg text-slate-600 transition";
+
+            if (tab === 'demandes') {
+                secDem.classList.remove('hidden');
+                tabDem.className = "flex-1 py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition";
+                chargerMesDemandes();
+            } else if (tab === 'publier') {
+                secPub.classList.remove('hidden');
+                tabPub.className = "flex-1 py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition";
+            } else if (tab === 'services') {
+                secSer.classList.remove('hidden');
+                tabSer.className = "flex-1 py-2 rounded-lg bg-white text-emerald-700 shadow-sm transition";
+                chargerMesServices();
+            }
+        }
+
+        async function chargerMesDemandes() {
+            if (!artisanConnecte) return;
+            const container = document.getElementById('container-mes-demandes');
+            try {
+                const res = await fetch(`${API_URL}/artisan/${artisanConnecte.id}/demandes`);
+                const json = await res.json();
+                const demandes = json.data || [];
+
+                document.getElementById('stat-demandes').innerText = demandes.length;
+                
+                // Badge onglet
+                const badge = document.getElementById('badge-demandes-count');
+                const nonTraitees = demandes.filter(d => (d.statut || 'Nouveau') === 'Nouveau').length;
+                if (nonTraitees > 0) {
+                    badge.innerText = nonTraitees;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+
+                if (demandes.length === 0) {
+                    container.innerHTML = `
+                        <div class="bg-white rounded-xl p-6 text-center border border-slate-200">
+                            <p class="text-xs text-slate-400">Aucune demande reçue pour l'instant.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = demandes.map(d => {
+                    const statut = d.statut || 'Nouveau';
+                    let statutBadgeClass = 'bg-amber-100 text-amber-800';
+                    if (statut === 'Contacté') statutBadgeClass = 'bg-blue-100 text-blue-800';
+                    if (statut === 'Terminé') statutBadgeClass = 'bg-emerald-100 text-emerald-800';
+
+                    const cleanCliTel = nettoyerNumeroSenegal(d.telephone_client);
+
+                    return `
+                        <div class="bg-white rounded-xl p-3.5 border border-slate-200 shadow-sm space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${statutBadgeClass}">${statut}</span>
+                                <span class="text-[10px] text-slate-400">${d.date_creation || ''}</span>
+                            </div>
+                            <div>
+                                <h4 class="text-xs font-extrabold text-slate-800">${d.titre_service}</h4>
+                                <p class="text-[11px] text-slate-600 mt-0.5 italic">« ${d.description_besoin} »</p>
+                            </div>
+                            <div class="pt-1 border-t border-slate-100 flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-700">Client: ${d.nom_client}</span>
+                                <div class="flex items-center gap-1.5">
+                                    <a href="https://wa.me/${cleanCliTel}?text=Salam%20${encodeURIComponent(d.nom_client)}" target="_blank" class="w-7 h-7 rounded-lg bg-green-500 text-white flex items-center justify-center text-xs">
+                                        <i class="fa-brands fa-whatsapp"></i>
+                                    </a>
+                                    <a href="tel:+${cleanCliTel}" class="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-xs">
+                                        <i class="fa-solid fa-phone"></i>
+                                    </a>
+                                    <!-- Sélecteur de statut rapide -->
+                                    <select onchange="changerStatutDemande(${d.id}, this.value)" class="text-[10px] font-bold border border-slate-200 rounded-lg px-1.5 py-1 bg-slate-50">
+                                        <option value="Nouveau" ${statut === 'Nouveau' ? 'selected' : ''}>Nouveau</option>
+                                        <option value="Contacté" ${statut === 'Contacté' ? 'selected' : ''}>Contacté</option>
+                                        <option value="Terminé" ${statut === 'Terminé' ? 'selected' : ''}>Terminé</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error("Erreur demandes :", err);
+            }
+        }
+
+        async function changerStatutDemande(demandeId, statut) {
+            try {
+                await fetch(`${API_URL}/demandes/${demandeId}/statut`, {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ statut: statut })
+                });
+                afficherToast("Statut mis à jour !");
+                chargerMesDemandes();
+            } catch (e) {
+                alert("Erreur mise à jour statut");
+            }
+        }
+
+        async function chargerMesServices() {
+            if (!artisanConnecte) return;
+            const container = document.getElementById('container-mes-services');
+            try {
+                const res = await fetch(`${API_URL}/artisan/${artisanConnecte.id}/services`);
+                const json = await res.json();
+                const services = json.data || [];
+
+                document.getElementById('stat-services').innerText = services.length;
+
+                if (services.length === 0) {
+                    container.innerHTML = `
+                        <div class="bg-white rounded-xl p-6 text-center border border-slate-200">
+                            <p class="text-xs text-slate-400">Vous n'avez pas encore publié d'offre.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = services.map(s => `
+                    <div class="bg-white rounded-xl p-3.5 border border-slate-200 shadow-sm flex items-center justify-between">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-800">${s.titre_service}</h4>
+                            <p class="text-[11px] text-emerald-600 font-semibold">${s.tarif_indicatif || 'Sur devis'}</p>
+                        </div>
+                        <button onclick="supprimerService(${s.id})" class="text-red-500 hover:text-red-700 p-2 text-xs font-bold" title="Supprimer">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `).join('');
+
+            } catch (e) {
+                console.error("Erreur mes services :", e);
+            }
+        }
+
+        async function publierService(e) {
+            e.preventDefault();
+            if (!artisanConnecte) return;
+
+            const titre = document.getElementById('serv-titre').value.trim();
+            const desc = document.getElementById('serv-desc').value.trim();
+            const tarif = document.getElementById('serv-tarif').value.trim();
+
+            try {
+                const res = await fetch(`${API_URL}/services`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        artisan_id: artisanConnecte.id,
+                        titre_service: titre,
+                        description_service: desc,
+                        tarif_indicatif: tarif
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('serv-titre').value = '';
+                    document.getElementById('serv-desc').value = '';
+                    document.getElementById('serv-tarif').value = '';
+                    afficherToast("Prestation mise en ligne !");
+                    switchArtisanTab('services');
+                } else {
+                    alert(data.message || "Erreur de publication");
+                }
+            } catch (err) {
+                alert("Erreur de communication avec le serveur.");
+            }
+        }
+
+        async function supprimerService(id) {
+            if (!confirm("Voulez-vous retirer cette prestation de l'application ?")) return;
+            try {
+                await fetch(`${API_URL}/services/${id}`, { method: 'DELETE' });
+                afficherToast("Prestation retirée.");
+                chargerMesServices();
+            } catch (e) {
+                alert("Erreur lors de la suppression.");
+            }
+        }
+
+        // Notification Toast
+        function afficherToast(message) {
+            const toast = document.getElementById('app-toast');
+            document.getElementById('toast-message').innerText = message;
+            toast.classList.remove('hidden');
+            toast.classList.add('flex');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('flex');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

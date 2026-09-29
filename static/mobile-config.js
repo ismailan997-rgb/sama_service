@@ -1,0 +1,2 @@
+window.SAMASERVICE_API_URL = window.SAMASERVICE_API_URL || '/api';
+window.SAMASERVICE_IS_NATIVE = false;

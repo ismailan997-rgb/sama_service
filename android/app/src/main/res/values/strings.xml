@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SamaService</string>
+    <string name="title_activity_main">SamaService</string>
+    <string name="package_name">sn.samaservice.dakar</string>
+    <string name="custom_url_scheme">sn.samaservice.dakar</string>
+</resources>
