@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const configuredApiUrl = process.env.SAMASERVICE_API_URL?.trim()
-    || 'https://sama-service.onrender.com/api';
+    || 'https://sama-service-1.onrender.com/api';
 
 let apiUrl;
 try {
