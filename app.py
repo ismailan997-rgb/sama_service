@@ -38,14 +38,39 @@ QUARTIERS_DAKAR = [
 ]
 
 METIERS_LISTE = [
-    {"id": "mecanicien", "nom": "Mécanicien Auto / Moto", "icone": "fa-wrench"},
-    {"id": "plombier", "nom": "Plombier", "icone": "fa-faucet"},
-    {"id": "electricien", "nom": "Électricien", "icone": "fa-bolt"},
-    {"id": "climatisation", "nom": "Climatisation / Froid", "icone": "fa-snowflake"},
-    {"id": "menuisier", "nom": "Menuisier Bois / Aluminium", "icone": "fa-hammer"},
-    {"id": "peintre", "nom": "Peintre en Bâtiment", "icone": "fa-paint-roller"},
-    {"id": "serrurier", "nom": "Serrurier", "icone": "fa-key"},
-    {"id": "nettoyage", "nom": "Nettoyage & Débouchage", "icone": "fa-broom"}
+    {"id": "mecanicien", "nom": "Mécanicien Auto / Moto", "icone": "fa-wrench", "emoji": "🚗"},
+    {"id": "vulcanisateur", "nom": "Vulcanisateur / dépannage pneus", "icone": "fa-car-burst", "emoji": "🛞"},
+    {"id": "plombier", "nom": "Plombier", "icone": "fa-faucet", "emoji": "🚰"},
+    {"id": "electricien", "nom": "Électricien", "icone": "fa-bolt", "emoji": "⚡"},
+    {"id": "climatisation", "nom": "Climatisation / Froid", "icone": "fa-snowflake", "emoji": "❄️"},
+    {"id": "videosurveillance", "nom": "Technicien vidéosurveillance / alarmes", "icone": "fa-video", "emoji": "📹"},
+    {"id": "informatique", "nom": "Technicien informatique / réparation PC", "icone": "fa-laptop", "emoji": "💻"},
+    {"id": "telephones", "nom": "Réparateur de téléphones", "icone": "fa-mobile-screen-button", "emoji": "📱"},
+    {"id": "reseau_fibre", "nom": "Technicien réseau / fibre optique", "icone": "fa-network-wired", "emoji": "🌐"},
+    {"id": "electromenager", "nom": "Réparateur électroménager", "icone": "fa-plug", "emoji": "🔌"},
+    {"id": "antenniste", "nom": "Installateur antennes / paraboles", "icone": "fa-satellite-dish", "emoji": "📡"},
+    {"id": "solaire", "nom": "Installateur solaire / panneaux photovoltaïques", "icone": "fa-solar-panel", "emoji": "☀️"},
+    {"id": "groupes_pompes", "nom": "Réparateur pompes / groupes électrogènes", "icone": "fa-gears", "emoji": "⚙️"},
+    {"id": "menuisier", "nom": "Menuisier Bois / Aluminium", "icone": "fa-hammer", "emoji": "🪚"},
+    {"id": "serrurier", "nom": "Serrurier", "icone": "fa-key", "emoji": "🔑"},
+    {"id": "soudeur", "nom": "Soudeur / métallier", "icone": "fa-industry", "emoji": "🧰"},
+    {"id": "macon", "nom": "Maçon", "icone": "fa-trowel-bricks", "emoji": "🧱"},
+    {"id": "carreleur", "nom": "Carreleur", "icone": "fa-border-all", "emoji": "🧩"},
+    {"id": "peintre", "nom": "Peintre en Bâtiment", "icone": "fa-paint-roller", "emoji": "🎨"},
+    {"id": "staffeur", "nom": "Plâtrier / staffeur", "icone": "fa-house", "emoji": "🏠"},
+    {"id": "couvreur", "nom": "Couvreur / étancheur", "icone": "fa-house-chimney", "emoji": "🏡"},
+    {"id": "vitrier", "nom": "Vitrier", "icone": "fa-window-maximize", "emoji": "🪟"},
+    {"id": "nettoyage", "nom": "Nettoyage & Débouchage", "icone": "fa-broom", "emoji": "🧹"},
+    {"id": "jardinier", "nom": "Jardinier / paysagiste", "icone": "fa-seedling", "emoji": "🌱"},
+    {"id": "desinsectisation", "nom": "Désinsectisation / dératisation", "icone": "fa-bug", "emoji": "🐜"},
+    {"id": "demenageur", "nom": "Déménageur", "icone": "fa-truck-moving", "emoji": "🚚"},
+    {"id": "aide_menagere", "nom": "Aide ménagère / repassage", "icone": "fa-shirt", "emoji": "🧺"},
+    {"id": "couturier", "nom": "Couturier / retouche", "icone": "fa-scissors", "emoji": "🧵"},
+    {"id": "coiffeur", "nom": "Coiffeur à domicile", "icone": "fa-scissors", "emoji": "💇"},
+    {"id": "tapissier", "nom": "Tapissier / réparation de meubles", "icone": "fa-couch", "emoji": "🛋️"},
+    {"id": "bricoleur", "nom": "Bricoleur polyvalent", "icone": "fa-screwdriver-wrench", "emoji": "🪛"},
+    {"id": "lavage_auto", "nom": "Lavage auto à domicile", "icone": "fa-car-side", "emoji": "🚙"},
+    {"id": "autre", "nom": "Autre artisan / prestataire", "icone": "fa-ellipsis", "emoji": "🧑🏾‍🔧"}
 ]
 
 class CompatibleCursor:

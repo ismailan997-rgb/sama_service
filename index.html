@@ -108,41 +108,9 @@
                     </div>
 
                     <div class="flex gap-2 overflow-x-auto no-scrollbar py-1" id="categories-scroll">
-                        <button onclick="selectionnerMetier('Tous')" class="cat-pill active flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm transition active:scale-95">
+                        <button type="button" data-metier="Tous" onclick="selectionnerMetier('Tous')" class="cat-pill active flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm transition active:scale-95">
                             <i class="fa-solid fa-border-all"></i>
                             <span>Tous</span>
-                        </button>
-                        <button onclick="selectionnerMetier('Mécanicien Auto / Moto')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
-                            <span>🚗</span>
-                            <span>Mécanique</span>
-                        </button>
-                        <button onclick="selectionnerMetier('Plombier')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
-                            <span>🔧</span>
-                            <span>Plomberie</span>
-                        </button>
-                        <button onclick="selectionnerMetier('Électricien')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
-                            <span>⚡</span>
-                            <span>Électricité</span>
-                        </button>
-                        <button onclick="selectionnerMetier('Climatisation / Froid')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
-                            <span>❄️</span>
-                            <span>Froid & Clim</span>
-                        </button>
-                        <button onclick="selectionnerMetier('Menuisier Bois / Aluminium')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
-                            <span>🪚</span>
-                            <span>Menuiserie</span>
-                        </button>
-                        <button onclick="selectionnerMetier('Peintre en Bâtiment')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
-                            <span>🎨</span>
-                            <span>Peinture</span>
-                        </button>
-                        <button onclick="selectionnerMetier('Serrurier')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
-                            <span>🔑</span>
-                            <span>Serrurerie</span>
-                        </button>
-                        <button onclick="selectionnerMetier('Nettoyage & Débouchage')" class="cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95">
-                            <span>🧹</span>
-                            <span>Nettoyage</span>
                         </button>
                     </div>
                 </div>
@@ -227,14 +195,7 @@
                         <div>
                             <label class="block text-[11px] font-bold text-slate-600 mb-1">Métier principal</label>
                             <select id="reg-metier" required class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
-                                <option value="Mécanicien Auto / Moto">🚗 Mécanicien Auto / Moto</option>
-                                <option value="Plombier">🔧 Plombier</option>
-                                <option value="Électricien">⚡ Électricien</option>
-                                <option value="Climatisation / Froid">❄️ Climatisation / Froid</option>
-                                <option value="Menuisier Bois / Aluminium">🪚 Menuisier Bois / Aluminium</option>
-                                <option value="Peintre en Bâtiment">🎨 Peintre en Bâtiment</option>
-                                <option value="Serrurier">🔑 Serrurier</option>
-                                <option value="Nettoyage & Débouchage">🧹 Nettoyage & Débouchage</option>
+                                <option value="" disabled selected>Chargement des métiers...</option>
                             </select>
                         </div>
 
@@ -388,7 +349,7 @@
                     </div>
 
                     <div class="pt-2">
-                        <a href="https://wa.me/221770000000?text=Salam%20Support%20SamaService" target="_blank" class="inline-flex items-center justify-center gap-2 w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs">
+                        <a href="https://wa.me/221784054454?text=Salam%20Support%20SamaService" target="_blank" class="inline-flex items-center justify-center gap-2 w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs">
                             <i class="fa-brands fa-whatsapp text-sm"></i>
                             Contacter le support Dakar
                         </a>
@@ -549,6 +510,44 @@
                 const res = await fetch(`${API_URL}/metadonnees`);
                 const data = await res.json();
                 listeQuartiersDakar = data.quartiers || [];
+                const listeMetiers = Array.isArray(data.metiers) ? data.metiers : [];
+
+                const regMetierSelect = document.getElementById('reg-metier');
+                if (regMetierSelect) {
+                    regMetierSelect.replaceChildren(...listeMetiers.map(metier => {
+                        const option = document.createElement('option');
+                        option.value = metier.nom;
+                        option.textContent = `${metier.emoji || ''} ${metier.nom}`.trim();
+                        return option;
+                    }));
+                }
+
+                const categoriesScroll = document.getElementById('categories-scroll');
+                const allMetiersButton = categoriesScroll?.querySelector('[data-metier="Tous"]');
+                if (categoriesScroll && allMetiersButton) {
+                    allMetiersButton.className = metierSelectionne === 'Tous'
+                        ? "cat-pill active flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm transition active:scale-95"
+                        : "cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95";
+
+                    const metierButtons = listeMetiers.map(metier => {
+                        const button = document.createElement('button');
+                        button.type = 'button';
+                        button.dataset.metier = metier.nom;
+                        button.className = metier.nom === metierSelectionne
+                            ? "cat-pill active flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white shadow-sm transition active:scale-95"
+                            : "cat-pill flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-sm transition active:scale-95";
+                        button.addEventListener('click', () => selectionnerMetier(metier.nom));
+
+                        const emoji = document.createElement('span');
+                        emoji.textContent = metier.emoji || '🔧';
+                        const label = document.createElement('span');
+                        label.textContent = metier.nom;
+                        button.append(emoji, label);
+                        return button;
+                    });
+
+                    categoriesScroll.replaceChildren(allMetiersButton, ...metierButtons);
+                }
                 
                 // Remplir le select d'inscription
                 const regQuartierSelect = document.getElementById('reg-quartier');
