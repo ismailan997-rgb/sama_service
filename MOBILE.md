@@ -10,9 +10,9 @@ Le backend utilise SQLite en local et PostgreSQL quand la variable `DATABASE_URL
 2. Dans Supabase, conserve le mot de passe de la base et l'URI privés. Ne les ajoute ni à `app.py`, ni au code mobile, ni au dépôt Git.
 3. Pousse le projet sur GitHub, puis dans Render choisis **New → Blueprint** et connecte ce dépôt. Render lira `render.yaml` et te demandera la variable secrète `DATABASE_URL`.
 4. Colle l'URI PostgreSQL de Supabase comme valeur de `DATABASE_URL`, puis lance le déploiement.
-5. Après le premier déploiement, l'API sera disponible à `https://<nom-du-service>.onrender.com/api`. Render fournit le HTTPS.
+5. Après le premier déploiement, l'API est disponible à `https://sama-service.onrender.com/api`. Render fournit le HTTPS.
 
-Les tables sont créées au démarrage. Une base Supabase vide reçoit les services de démonstration existants. La base SQLite du PC n'est pas copiée automatiquement : exporte-la avant le déploiement si elle contient des comptes ou des demandes à conserver.
+Les tables sont créées au démarrage sans ajouter d'annonces de démonstration. Au prochain redémarrage, les deux anciennes annonces de Modou Dépannage Auto seront désactivées; les demandes liées restent conservées. La base SQLite du PC n'est pas copiée automatiquement : exporte-la avant le déploiement si elle contient des comptes ou des demandes à conserver.
 
 Le Blueprint utilise le plan gratuit Render pour faciliter les essais; le serveur peut se mettre en veille. Supabase conserve ses propres conditions de disponibilité et de sauvegarde, à vérifier dans le plan choisi.
 
@@ -24,18 +24,16 @@ Dans PowerShell, après le déploiement du serveur :
 
 ```powershell
 npm.cmd install
-$env:SAMASERVICE_API_URL = "https://api.votre-domaine.sn/api"
 npm.cmd run mobile:web
 ```
 
-L'URL doit être l'adresse HTTPS publique du backend et se terminer par `/api`. Ne mettez pas `127.0.0.1` : sur un téléphone, cette adresse désigne le téléphone lui-même.
+Le script utilise par défaut `https://sama-service.onrender.com/api`. Pour un autre serveur, définissez `SAMASERVICE_API_URL` avant de lancer le script. L'URL doit être en HTTPS et se terminer par `/api`; n'utilisez pas `127.0.0.1` sur un téléphone.
 
 ## Android
 
 Sur Windows, installez Android Studio et le SDK Android, puis :
 
 ```powershell
-npx cap add android
 npm.cmd run mobile:sync
 npm.cmd run android
 ```
@@ -48,9 +46,6 @@ La cible iOS doit être générée, compilée et signée sur macOS avec Xcode :
 
 ```sh
 npm install
-export SAMASERVICE_API_URL="https://api.votre-domaine.sn/api"
-npm run mobile:web
-npx cap add ios
 npm run mobile:sync
 npm run ios
 ```

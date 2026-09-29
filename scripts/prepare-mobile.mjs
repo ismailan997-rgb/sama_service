@@ -3,11 +3,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const configuredApiUrl = process.env.SAMASERVICE_API_URL?.trim();
-
-if (!configuredApiUrl) {
-    throw new Error('Définissez SAMASERVICE_API_URL, par exemple https://api.exemple.sn/api');
-}
+const configuredApiUrl = process.env.SAMASERVICE_API_URL?.trim()
+    || 'https://sama-service.onrender.com/api';
 
 let apiUrl;
 try {

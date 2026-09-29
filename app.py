@@ -6,6 +6,11 @@ from flask_cors import CORS
 DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
 USE_POSTGRES = DATABASE_URL.startswith(('postgres://', 'postgresql://'))
 DATABASE = os.environ.get('DATABASE_PATH', 'samaservice.db')
+DEMO_ARTISAN_TELEPHONE = '771234567'
+DEMO_SERVICE_TITLES = (
+    'Diagnostic & Vidange Rapide Scooter / Moto',
+    'Dépannage Mécanique Auto & Batterie',
+)
 
 if USE_POSTGRES:
     import psycopg
@@ -153,32 +158,15 @@ def init_db():
     
     conn.commit()
 
-    # Données de démonstration sénégalaises si la table services est vide
-    nb_services = cursor.execute("SELECT COUNT(*) AS total FROM services").fetchone()['total']
-    if nb_services == 0:
-        # Vérifier si l'artisan 1 existe
-        artisan_existant = cursor.execute("SELECT id FROM artisans LIMIT 1").fetchone()
-        artisan_id = artisan_existant['id'] if artisan_existant else None
-        
-        if not artisan_id:
-            mdp = generate_password_hash("pass123") if HAS_WERKZEUG else "pass123"
-            cursor.execute('''
-                INSERT INTO artisans (nom, telephone, mot_de_passe, metier, quartier, note)
-                VALUES (?, ?, ?, ?, ?, ?)
-                RETURNING id
-            ''', ("Modou Dépannage Auto", "771234567", mdp, "Mécanicien Auto / Moto", "Grand Yoff", 4.9))
-            artisan_id = cursor.fetchone()['id']
-
-        # Insérer quelques services utiles pour tester l'application
-        services_demo = [
-            (artisan_id, "Diagnostic & Vidange Rapide Scooter / Moto", "Changement d'huile moteur, vérification des freins et bougies. Déplacement possible à domicile partout à Dakar.", "8 000 FCFA"),
-            (artisan_id, "Dépannage Mécanique Auto & Batterie", "Problème d'allumage, alternateur, démarrage difficile. Intervention rapide avec câbles et outillage.", "15 000 FCFA")
-        ]
-        cursor.executemany('''
-            INSERT INTO services (artisan_id, titre_service, description_service, tarif_indicatif)
-            VALUES (?, ?, ?, ?)
-        ''', services_demo)
-        conn.commit()
+    cursor.execute('''
+        UPDATE services
+        SET actif = 0
+        WHERE titre_service IN (?, ?)
+          AND artisan_id IN (
+              SELECT id FROM artisans WHERE telephone = ?
+          )
+    ''', (*DEMO_SERVICE_TITLES, DEMO_ARTISAN_TELEPHONE))
+    conn.commit()
 
     conn.close()
 
