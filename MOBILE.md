@@ -18,8 +18,8 @@ Le Blueprint utilise le plan gratuit Render pour faciliter les essais; le serveu
 
 ## Photos de profil Cloudinary
 
-1. Crée un compte Cloudinary et copie la valeur `CLOUDINARY_URL` depuis le tableau de bord.
-2. Dans Render, ouvre le service `samaservice-api`, puis **Environment**. Ajoute `CLOUDINARY_URL` avec cette valeur. Ne la colle jamais dans le dépôt Git ni dans l'application mobile.
+1. Dans le tableau de bord Cloudinary, récupère `Cloud Name`, `API Key` et `API Secret`.
+2. Dans Render, ouvre le service `samaservice-api`, puis **Environment**. Ajoute `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` et `CLOUDINARY_API_SECRET` avec les valeurs correspondantes. Ne les colle jamais dans le dépôt Git ni dans l'application mobile.
 3. `FLASK_SECRET_KEY` est générée par le Blueprint. Cette clé signe les jetons temporaires utilisés pour modifier les photos; conserve-la stable entre les déploiements.
 4. Redéploie le service Render. Les photos JPEG, PNG et WebP jusqu'à 5 Mo seront stockées dans le dossier Cloudinary `samaservice/profiles`.
 

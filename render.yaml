@@ -11,5 +11,9 @@ services:
         sync: false
       - key: FLASK_SECRET_KEY
         generateValue: true
-      - key: CLOUDINARY_URL
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
         sync: false

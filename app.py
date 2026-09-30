@@ -44,14 +44,33 @@ def request_too_large(_error):
     return jsonify({"success": False, "message": "La photo ne doit pas dépasser 5 Mo."}), 413
 
 
+def cloudinary_credentials_configured():
+    if os.environ.get('CLOUDINARY_URL', '').strip():
+        return True
+    return all(os.environ.get(key, '').strip() for key in (
+        'CLOUDINARY_CLOUD_NAME',
+        'CLOUDINARY_API_KEY',
+        'CLOUDINARY_API_SECRET'
+    ))
+
+
 def get_cloudinary_uploader():
-    if not os.environ.get('CLOUDINARY_URL', '').strip():
+    if not cloudinary_credentials_configured():
         return None
 
     import cloudinary
     import cloudinary.uploader
 
-    cloudinary.config(secure=True)
+    cloudinary_url = os.environ.get('CLOUDINARY_URL', '').strip()
+    if cloudinary_url:
+        cloudinary.config(cloudinary_url=cloudinary_url, secure=True)
+    else:
+        cloudinary.config(
+            cloud_name=os.environ['CLOUDINARY_CLOUD_NAME'].strip(),
+            api_key=os.environ['CLOUDINARY_API_KEY'].strip(),
+            api_secret=os.environ['CLOUDINARY_API_SECRET'].strip(),
+            secure=True
+        )
     return cloudinary.uploader
 
 
@@ -412,7 +431,7 @@ def remplacer_photo_profil():
         return jsonify({"success": False, "message": "Choisissez une photo à envoyer."}), 400
     if photo.mimetype not in ALLOWED_PROFILE_PHOTO_TYPES:
         return jsonify({"success": False, "message": "Choisissez une image JPEG, PNG ou WebP."}), 400
-    if not os.environ.get('CLOUDINARY_URL', '').strip():
+    if not cloudinary_credentials_configured():
         return jsonify({"success": False, "message": "Le stockage photo n'est pas configuré."}), 503
 
     conn = get_db_connection()
@@ -456,7 +475,7 @@ def supprimer_photo_profil():
     artisan_id = get_authenticated_photo_artisan_id()
     if artisan_id is None:
         return jsonify({"success": False, "message": "Reconnectez-vous pour modifier votre photo."}), 401
-    if not os.environ.get('CLOUDINARY_URL', '').strip():
+    if not cloudinary_credentials_configured():
         return jsonify({"success": False, "message": "Le stockage photo n'est pas configuré."}), 503
 
     conn = get_db_connection()
