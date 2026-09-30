@@ -229,6 +229,17 @@ class ApiSecurityTests(unittest.TestCase):
         )
         self.assertNotIn('Access-Control-Allow-Origin', response.headers)
 
+    def test_privacy_policy_is_available_and_linked(self):
+        page = self.client.get('/')
+        policy = self.client.get('/static/politique-confidentialite.html')
+
+        self.assertEqual(page.status_code, 200)
+        self.assertIn(b'/static/politique-confidentialite.html', page.data)
+        self.assertEqual(policy.status_code, 200)
+        self.assertIn('Papa Ismaila Ndiaye'.encode('utf-8'), policy.data)
+        self.assertIn(b'ismailan997@gmail.com', policy.data)
+        policy.close()
+
 
 if __name__ == '__main__':
     unittest.main()

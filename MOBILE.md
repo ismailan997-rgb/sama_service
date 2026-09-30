@@ -29,6 +29,8 @@ Pour tester gratuitement, garde `plan: free` et limite d'abord l'accès à un pe
 
 Un ping externe toutes les 10 minutes peut éviter la mise en veille due à l'inactivité, mais ne garantit pas que l'instance reste disponible. Un cron Render est facturé selon son temps d'exécution; il n'est pas ajouté au Blueprint gratuit. Pour une bêta sans frais imprévus, accepte plutôt le réveil à froid.
 
+La notice de confidentialité est disponible dans l'application avant la création d'un compte et depuis l'onglet Aide. Elle est copiée dans les fichiers Capacitor par `npm.cmd run mobile:web`. Les coordonnées utilisées sont le nom fourni par le responsable, sa localisation à Yoff et le numéro WhatsApp support déjà affiché dans l'application. Vérifie les formalités applicables auprès de la CDP avant une ouverture publique.
+
 ## Photos de profil Cloudinary
 
 1. Dans le tableau de bord Cloudinary, récupère `Cloud Name`, `API Key` et `API Secret`.
