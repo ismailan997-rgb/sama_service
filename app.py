@@ -1,7 +1,9 @@
 import os
+import secrets
 import sqlite3
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from itsdangerous import BadSignature, URLSafeTimedSerializer
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
 USE_POSTGRES = DATABASE_URL.startswith(('postgres://', 'postgresql://'))
@@ -28,6 +30,98 @@ except ImportError:
 
 app = Flask(__name__)
 CORS(app)
+MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024
+ALLOWED_PROFILE_PHOTO_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
+app.config['MAX_CONTENT_LENGTH'] = MAX_PROFILE_PHOTO_BYTES + 64 * 1024
+profile_photo_serializer = URLSafeTimedSerializer(
+    os.environ.get('FLASK_SECRET_KEY') or secrets.token_urlsafe(48),
+    salt='samaservice-profile-photo'
+)
+
+
+@app.errorhandler(413)
+def request_too_large(_error):
+    return jsonify({"success": False, "message": "La photo ne doit pas dépasser 5 Mo."}), 413
+
+
+def get_cloudinary_uploader():
+    if not os.environ.get('CLOUDINARY_URL', '').strip():
+        return None
+
+    import cloudinary
+    import cloudinary.uploader
+
+    cloudinary.config(secure=True)
+    return cloudinary.uploader
+
+
+def create_profile_photo_token(artisan_id):
+    return profile_photo_serializer.dumps({"artisan_id": int(artisan_id)})
+
+
+def get_authenticated_photo_artisan_id():
+    authorization = request.headers.get('Authorization', '')
+    if not authorization.startswith('Bearer '):
+        return None
+
+    try:
+        token_data = profile_photo_serializer.loads(
+            authorization.removeprefix('Bearer '),
+            max_age=60 * 60 * 24 * 30
+        )
+        return int(token_data['artisan_id'])
+    except (BadSignature, KeyError, TypeError, ValueError):
+        return None
+
+
+def upload_profile_photo(photo):
+    if photo is None or not photo.filename:
+        return None, "Choisissez une photo à envoyer."
+    if photo.mimetype not in ALLOWED_PROFILE_PHOTO_TYPES:
+        return None, "Format invalide. Choisissez une image JPEG, PNG ou WebP."
+
+    uploader = get_cloudinary_uploader()
+    if uploader is None:
+        return None, "Le stockage photo n'est pas configuré. Contactez l'administrateur."
+
+    try:
+        result = uploader.upload(
+            photo.stream,
+            folder='samaservice/profiles',
+            resource_type='image',
+            allowed_formats=['jpg', 'jpeg', 'png', 'webp'],
+            transformation=[{
+                'width': 512,
+                'height': 512,
+                'crop': 'fill',
+                'gravity': 'auto',
+                'quality': 'auto',
+                'fetch_format': 'auto'
+            }]
+        )
+    except Exception:
+        app.logger.exception("Échec du téléversement Cloudinary")
+        return None, "La photo n'a pas pu être envoyée. Réessayez plus tard."
+
+    if not result.get('secure_url') or not result.get('public_id'):
+        return None, "Cloudinary n'a pas retourné les informations de la photo."
+    return result, None
+
+
+def delete_cloudinary_photo(public_id):
+    if not public_id:
+        return True
+
+    uploader = get_cloudinary_uploader()
+    if uploader is None:
+        return False
+
+    try:
+        uploader.destroy(public_id, resource_type='image', invalidate=True)
+        return True
+    except Exception:
+        app.logger.exception("Échec de la suppression Cloudinary")
+        return False
 
 # Liste des quartiers populaires de Dakar
 QUARTIERS_DAKAR = [
@@ -128,6 +222,8 @@ def init_db():
             metier TEXT NOT NULL,
             quartier TEXT NOT NULL,
             note REAL DEFAULT 5.0,
+            photo_url TEXT,
+            photo_public_id TEXT,
             date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -165,6 +261,8 @@ def init_db():
         cursor.execute("ALTER TABLE demandes ADD COLUMN IF NOT EXISTS statut TEXT DEFAULT 'Nouveau'")
         cursor.execute("ALTER TABLE services ADD COLUMN IF NOT EXISTS actif INTEGER DEFAULT 1")
         cursor.execute("ALTER TABLE artisans ADD COLUMN IF NOT EXISTS note REAL DEFAULT 5.0")
+        cursor.execute("ALTER TABLE artisans ADD COLUMN IF NOT EXISTS photo_url TEXT")
+        cursor.execute("ALTER TABLE artisans ADD COLUMN IF NOT EXISTS photo_public_id TEXT")
     else:
         try:
             cursor.execute("ALTER TABLE demandes ADD COLUMN statut TEXT DEFAULT 'Nouveau'")
@@ -180,6 +278,12 @@ def init_db():
             cursor.execute("ALTER TABLE artisans ADD COLUMN note REAL DEFAULT 5.0")
         except sqlite3.OperationalError:
             pass
+
+        for column_name in ('photo_url', 'photo_public_id'):
+            try:
+                cursor.execute(f"ALTER TABLE artisans ADD COLUMN {column_name} TEXT")
+            except sqlite3.OperationalError:
+                pass
     
     conn.commit()
 
@@ -240,7 +344,9 @@ def inscription_artisan():
                 "telephone": telephone,
                 "metier": metier,
                 "quartier": quartier,
-                "note": 5.0
+                "note": 5.0,
+                "photo_url": None,
+                "photo_token": create_profile_photo_token(artisan_id)
             }
         }), 201
     except INTEGRITY_ERRORS:
@@ -256,7 +362,7 @@ def connexion_artisan():
     conn = get_db_connection()
     cursor = conn.cursor()
     artisan = cursor.execute('''
-        SELECT id, nom, telephone, mot_de_passe, metier, quartier, note FROM artisans
+        SELECT id, nom, telephone, mot_de_passe, metier, quartier, note, photo_url FROM artisans
         WHERE telephone = ?
     ''', (telephone,)).fetchone()
     
@@ -284,13 +390,97 @@ def connexion_artisan():
                 "telephone": artisan["telephone"],
                 "metier": artisan["metier"],
                 "quartier": artisan["quartier"],
-                "note": artisan["note"] if "note" in artisan.keys() else 5.0
+                "note": artisan["note"] if "note" in artisan.keys() else 5.0,
+                "photo_url": artisan["photo_url"],
+                "photo_token": create_profile_photo_token(artisan["id"])
             }
             conn.close()
             return jsonify({"success": True, "artisan": res_artisan})
 
     conn.close()
     return jsonify({"success": False, "message": "Numéro de téléphone ou mot de passe incorrect."}), 401
+
+
+@app.route('/api/artisan/photo', methods=['POST'])
+def remplacer_photo_profil():
+    artisan_id = get_authenticated_photo_artisan_id()
+    if artisan_id is None:
+        return jsonify({"success": False, "message": "Reconnectez-vous pour modifier votre photo."}), 401
+
+    photo = request.files.get('photo')
+    if photo is None or not photo.filename:
+        return jsonify({"success": False, "message": "Choisissez une photo à envoyer."}), 400
+    if photo.mimetype not in ALLOWED_PROFILE_PHOTO_TYPES:
+        return jsonify({"success": False, "message": "Choisissez une image JPEG, PNG ou WebP."}), 400
+    if not os.environ.get('CLOUDINARY_URL', '').strip():
+        return jsonify({"success": False, "message": "Le stockage photo n'est pas configuré."}), 503
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    artisan = cursor.execute(
+        'SELECT photo_public_id FROM artisans WHERE id = ?',
+        (artisan_id,)
+    ).fetchone()
+    if not artisan:
+        conn.close()
+        return jsonify({"success": False, "message": "Compte artisan introuvable."}), 404
+
+    result, error = upload_profile_photo(photo)
+    if error:
+        conn.close()
+        return jsonify({"success": False, "message": error}), 502
+
+    old_public_id = artisan['photo_public_id']
+    try:
+        cursor.execute(
+            'UPDATE artisans SET photo_url = ?, photo_public_id = ? WHERE id = ?',
+            (result['secure_url'], result['public_id'], artisan_id)
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        conn.close()
+        delete_cloudinary_photo(result['public_id'])
+        app.logger.exception("Échec de l'enregistrement de la photo de profil")
+        return jsonify({"success": False, "message": "La photo n'a pas pu être enregistrée."}), 500
+    conn.close()
+
+    if old_public_id and old_public_id != result['public_id']:
+        delete_cloudinary_photo(old_public_id)
+
+    return jsonify({"success": True, "photo_url": result['secure_url']})
+
+
+@app.route('/api/artisan/photo', methods=['DELETE'])
+def supprimer_photo_profil():
+    artisan_id = get_authenticated_photo_artisan_id()
+    if artisan_id is None:
+        return jsonify({"success": False, "message": "Reconnectez-vous pour modifier votre photo."}), 401
+    if not os.environ.get('CLOUDINARY_URL', '').strip():
+        return jsonify({"success": False, "message": "Le stockage photo n'est pas configuré."}), 503
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    artisan = cursor.execute(
+        'SELECT photo_public_id FROM artisans WHERE id = ?',
+        (artisan_id,)
+    ).fetchone()
+    if not artisan:
+        conn.close()
+        return jsonify({"success": False, "message": "Compte artisan introuvable."}), 404
+
+    public_id = artisan['photo_public_id']
+    cursor.execute(
+        'UPDATE artisans SET photo_url = NULL, photo_public_id = NULL WHERE id = ?',
+        (artisan_id,)
+    )
+    conn.commit()
+    conn.close()
+
+    if public_id:
+        delete_cloudinary_photo(public_id)
+
+    return jsonify({"success": True, "photo_url": None})
 
 # --- SERVICES & DEMANDES ---
 @app.route('/api/services', methods=['GET'])

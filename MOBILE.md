@@ -16,6 +16,15 @@ Les tables sont créées au démarrage sans ajouter d'annonces de démonstration
 
 Le Blueprint utilise le plan gratuit Render pour faciliter les essais; le serveur peut se mettre en veille. Supabase conserve ses propres conditions de disponibilité et de sauvegarde, à vérifier dans le plan choisi.
 
+## Photos de profil Cloudinary
+
+1. Crée un compte Cloudinary et copie la valeur `CLOUDINARY_URL` depuis le tableau de bord.
+2. Dans Render, ouvre le service `samaservice-api`, puis **Environment**. Ajoute `CLOUDINARY_URL` avec cette valeur. Ne la colle jamais dans le dépôt Git ni dans l'application mobile.
+3. `FLASK_SECRET_KEY` est générée par le Blueprint. Cette clé signe les jetons temporaires utilisés pour modifier les photos; conserve-la stable entre les déploiements.
+4. Redéploie le service Render. Les photos JPEG, PNG et WebP jusqu'à 5 Mo seront stockées dans le dossier Cloudinary `samaservice/profiles`.
+
+La photo d'inscription est facultative. Si Cloudinary n'est pas configuré, l'inscription normale reste disponible, mais l'envoi, le remplacement et la suppression d'une photo sont désactivés.
+
 Si les logs Render affichent `Using Erlang` ou `Using Elixir`, le service actif est encore configuré avec le mauvais runtime. Dans les paramètres du service, sélectionne **Python**, puis relance un déploiement. Les logs du build doivent montrer `pip install -r requirements.txt`; ceux du démarrage doivent lancer Gunicorn sur le port `$PORT`. Le Blueprint ci-dessus configure déjà ces valeurs.
 
 ## Préparer les fichiers web

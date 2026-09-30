@@ -193,6 +193,20 @@
                         </div>
 
                         <div>
+                            <label for="reg-photo" class="block text-[11px] font-bold text-slate-600 mb-1">Photo de profil (facultative)</label>
+                            <div class="flex items-center gap-3">
+                                <div class="w-14 h-14 shrink-0 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center overflow-hidden">
+                                    <img id="reg-photo-preview" class="hidden w-full h-full object-cover" alt="Aperçu de la photo de profil">
+                                    <i id="reg-photo-placeholder" class="fa-solid fa-user text-xl"></i>
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <input type="file" id="reg-photo" accept="image/jpeg,image/png,image/webp" onchange="afficherApercuPhoto(this, 'reg-photo-preview', 'reg-photo-placeholder')" class="block w-full text-[11px] text-slate-600 file:mr-2 file:rounded-lg file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-[11px] file:font-bold file:text-emerald-700">
+                                    <p class="mt-1 text-[10px] text-slate-400">JPEG, PNG ou WebP, 5 Mo maximum</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
                             <label class="block text-[11px] font-bold text-slate-600 mb-1">Métier principal</label>
                             <select id="reg-metier" required class="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
                                 <option value="" disabled selected>Chargement des métiers...</option>
@@ -224,8 +238,9 @@
                     <div class="bg-gradient-to-br from-emerald-800 to-teal-900 rounded-2xl p-4 text-white shadow-sm relative overflow-hidden">
                         <div class="flex items-start justify-between">
                             <div class="flex items-center space-x-3">
-                                <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl font-bold border border-white/20 text-amber-300">
-                                    <i class="fa-solid fa-user-check"></i>
+                                <div class="w-12 h-12 shrink-0 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-xl font-bold border border-white/20 text-amber-300 overflow-hidden">
+                                    <img id="dash-photo" class="hidden w-full h-full object-cover" alt="Photo de profil artisan">
+                                    <i id="dash-photo-placeholder" class="fa-solid fa-user-check"></i>
                                 </div>
                                 <div>
                                     <div class="flex items-center gap-1.5">
@@ -238,6 +253,16 @@
                             </div>
                             <button onclick="deconnexion()" title="Se déconnecter" class="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 px-2.5 py-1.5 rounded-xl text-xs font-bold transition">
                                 <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                            </button>
+                        </div>
+
+                        <div class="mt-3 flex items-center gap-2">
+                            <input type="file" id="dash-photo-file" accept="image/jpeg,image/png,image/webp" onchange="changerPhotoProfil(this)" class="hidden">
+                            <button type="button" onclick="document.getElementById('dash-photo-file').click()" class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-2 text-[11px] font-bold text-white hover:bg-white/25">
+                                <i class="fa-solid fa-camera"></i> Changer la photo
+                            </button>
+                            <button type="button" id="dash-photo-delete" onclick="supprimerPhotoProfil()" class="hidden inline-flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-2 text-[11px] font-bold text-white hover:bg-red-500/35">
+                                <i class="fa-solid fa-trash"></i> Supprimer
                             </button>
                         </div>
 
@@ -794,6 +819,118 @@
             }
         }
 
+        function afficherApercuPhoto(input, imageId, placeholderId) {
+            const photo = input.files?.[0];
+            if (!photo) return false;
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.type)) {
+                alert('Choisissez une image JPEG, PNG ou WebP.');
+                input.value = '';
+                return false;
+            }
+            if (photo.size > 5 * 1024 * 1024) {
+                alert('La photo ne doit pas dépasser 5 Mo.');
+                input.value = '';
+                return false;
+            }
+
+            const image = document.getElementById(imageId);
+            const previousPreview = image.dataset.previewUrl;
+            if (previousPreview) URL.revokeObjectURL(previousPreview);
+            const previewUrl = URL.createObjectURL(photo);
+            image.dataset.previewUrl = previewUrl;
+            image.src = previewUrl;
+            image.classList.remove('hidden');
+            document.getElementById(placeholderId).classList.add('hidden');
+            return true;
+        }
+
+        async function transmettrePhotoProfil(photo, token) {
+            const formData = new FormData();
+            formData.append('photo', photo);
+            const response = await fetch(`${API_URL}/artisan/photo`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                throw new Error(data.message || 'La photo n’a pas pu être envoyée.');
+            }
+            return data;
+        }
+
+        function actualiserPhotoProfil() {
+            const image = document.getElementById('dash-photo');
+            const placeholder = document.getElementById('dash-photo-placeholder');
+            const deleteButton = document.getElementById('dash-photo-delete');
+            const photoUrl = artisanConnecte?.photo_url;
+
+            if (image.dataset.previewUrl) {
+                URL.revokeObjectURL(image.dataset.previewUrl);
+                delete image.dataset.previewUrl;
+            }
+
+            if (photoUrl) {
+                image.src = photoUrl;
+                image.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+                deleteButton.classList.remove('hidden');
+            } else {
+                image.removeAttribute('src');
+                image.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+                deleteButton.classList.add('hidden');
+            }
+        }
+
+        async function changerPhotoProfil(input) {
+            const photo = input.files?.[0];
+            if (!photo) return;
+            if (!artisanConnecte?.photo_token) {
+                alert('Reconnectez-vous pour gérer votre photo de profil.');
+                input.value = '';
+                return;
+            }
+            if (!afficherApercuPhoto(input, 'dash-photo', 'dash-photo-placeholder')) return;
+
+            try {
+                const data = await transmettrePhotoProfil(photo, artisanConnecte.photo_token);
+                artisanConnecte.photo_url = data.photo_url;
+                localStorage.setItem('samaservice_artisan', JSON.stringify(artisanConnecte));
+                afficherToast('Photo de profil mise à jour.');
+            } catch (error) {
+                actualiserPhotoProfil();
+                alert(error.message);
+            } finally {
+                input.value = '';
+            }
+        }
+
+        async function supprimerPhotoProfil() {
+            if (!artisanConnecte?.photo_token) {
+                alert('Reconnectez-vous pour gérer votre photo de profil.');
+                return;
+            }
+            if (!artisanConnecte.photo_url || !confirm('Supprimer votre photo de profil ?')) return;
+
+            try {
+                const response = await fetch(`${API_URL}/artisan/photo`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${artisanConnecte.photo_token}` }
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'La photo n’a pas pu être supprimée.');
+                }
+                artisanConnecte.photo_url = null;
+                localStorage.setItem('samaservice_artisan', JSON.stringify(artisanConnecte));
+                actualiserPhotoProfil();
+                afficherToast('Photo de profil supprimée.');
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
         function verifierSession() {
             const zoneAuth = document.getElementById('artisan-auth');
             const zoneDash = document.getElementById('artisan-dashboard');
@@ -805,6 +942,7 @@
                 document.getElementById('dash-nom').innerText = artisanConnecte.nom;
                 document.getElementById('dash-metier').innerText = artisanConnecte.metier;
                 document.getElementById('dash-quartier').innerText = `📍 ${artisanConnecte.quartier} (${artisanConnecte.telephone})`;
+                actualiserPhotoProfil();
 
                 chargerMesDemandes();
                 chargerMesServices();
@@ -846,6 +984,7 @@
             const metier = document.getElementById('reg-metier').value;
             const quartier = document.getElementById('reg-quartier').value;
             const pass = document.getElementById('reg-pass').value;
+            const photo = document.getElementById('reg-photo').files?.[0];
 
             try {
                 const res = await fetch(`${API_URL}/artisan/inscription`, {
@@ -864,6 +1003,19 @@
                     artisanConnecte = data.artisan;
                     localStorage.setItem('samaservice_artisan', JSON.stringify(artisanConnecte));
                     verifierSession();
+
+                    if (photo) {
+                        try {
+                            const photoData = await transmettrePhotoProfil(photo, artisanConnecte.photo_token);
+                            artisanConnecte.photo_url = photoData.photo_url;
+                            localStorage.setItem('samaservice_artisan', JSON.stringify(artisanConnecte));
+                            actualiserPhotoProfil();
+                        } catch (error) {
+                            alert(`Compte créé, mais la photo n'a pas pu être envoyée : ${error.message}`);
+                            return;
+                        }
+                    }
+
                     afficherToast("Compte créé avec succès !");
                 } else {
                     alert(data.message || "Erreur lors de l'inscription.");
