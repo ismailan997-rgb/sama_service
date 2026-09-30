@@ -4,6 +4,7 @@ import unittest
 
 _test_database = tempfile.TemporaryDirectory()
 os.environ.pop('DATABASE_URL', None)
+os.environ.pop('REQUIRE_POSTGRES', None)
 os.environ['DATABASE_PATH'] = os.path.join(_test_database.name, 'security-tests.db')
 os.environ['CORS_ORIGINS'] = 'capacitor://localhost,http://localhost,https://localhost'
 
@@ -100,6 +101,62 @@ class ApiSecurityTests(unittest.TestCase):
             }
         )
         self.assertEqual(response.status_code, 409)
+
+    def test_account_deletion_requires_password_and_removes_only_related_data(self):
+        artisan = self.register_artisan('Artisan', '770000001')
+        other = self.register_artisan('Autre artisan', '770000002')
+        artisan_service_id = self.create_service(artisan)
+        other_service_id = self.create_service(other)
+        for service_id in (artisan_service_id, other_service_id):
+            self.client.post('/api/demandes', json={
+                'service_id': service_id,
+                'nom_client': 'Client',
+                'telephone_client': '771234567',
+                'description_besoin': 'Besoin'
+            })
+
+        self.assertEqual(
+            self.client.delete(
+                '/api/artisan/compte',
+                json={'mot_de_passe': 'long-password-123'}
+            ).status_code,
+            401
+        )
+        self.assertEqual(
+            self.client.delete(
+                '/api/artisan/compte',
+                headers=self.auth_headers(artisan),
+                json={'mot_de_passe': 'incorrect'}
+            ).status_code,
+            401
+        )
+
+        response = self.client.delete(
+            '/api/artisan/compte',
+            headers=self.auth_headers(artisan),
+            json={'mot_de_passe': 'long-password-123'}
+        )
+        self.assertEqual(response.status_code, 200)
+
+        conn = application.get_db_connection()
+        cursor = conn.cursor()
+        self.assertEqual(
+            cursor.execute('SELECT COUNT(*) AS count FROM artisans WHERE id = ?', (artisan['id'],)).fetchone()['count'],
+            0
+        )
+        self.assertEqual(
+            cursor.execute('SELECT COUNT(*) AS count FROM services WHERE artisan_id = ?', (artisan['id'],)).fetchone()['count'],
+            0
+        )
+        self.assertEqual(
+            cursor.execute('SELECT COUNT(*) AS count FROM demandes WHERE service_id = ?', (artisan_service_id,)).fetchone()['count'],
+            0
+        )
+        self.assertEqual(
+            cursor.execute('SELECT COUNT(*) AS count FROM demandes WHERE service_id = ?', (other_service_id,)).fetchone()['count'],
+            1
+        )
+        conn.close()
 
     def test_artisans_can_only_manage_their_own_services_and_requests(self):
         owner = self.register_artisan('Owner', '770000001')

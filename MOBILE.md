@@ -6,7 +6,7 @@ Le projet utilise Capacitor pour emballer l'interface web dans des applications 
 
 Le backend utilise SQLite en local et PostgreSQL quand la variable `DATABASE_URL` est définie. Le fichier `render.yaml` prépare le service Flask sur Render; la base de données reste hébergée séparément sur Supabase.
 
-1. Crée un projet Supabase et récupère son URI PostgreSQL depuis **Connect**. Utilise le pooler de session si l'accès direct n'est pas disponible depuis Render.
+1. Crée un projet Supabase dans la région **Central EU (Frankfurt, `eu-central-1`)** pour le rapprocher du service Render configuré à Frankfurt, puis récupère son URI PostgreSQL depuis **Connect**. Utilise le pooler de session si l'accès direct n'est pas disponible depuis Render.
 2. Dans Supabase, conserve le mot de passe de la base et l'URI privés. Ne les ajoute ni à `app.py`, ni au code mobile, ni au dépôt Git.
 3. Pousse le projet sur GitHub, puis dans Render choisis **New → Blueprint** et connecte ce dépôt. Render lira `render.yaml` et te demandera la variable secrète `DATABASE_URL`.
 4. Colle l'URI PostgreSQL de Supabase comme valeur de `DATABASE_URL`, puis lance le déploiement.
@@ -22,7 +22,7 @@ Le Blueprint utilise le plan gratuit Render pour faciliter les essais; le serveu
 
 Pour tester gratuitement, garde `plan: free` et limite d'abord l'accès à un petit groupe. Avant de partager le lien :
 
-1. Vérifie dans Render que `DATABASE_URL` pointe vers le projet PostgreSQL Supabase prévu pour la bêta. N'utilise pas SQLite sur Render : son disque peut être effacé au redémarrage ou à la mise en veille.
+1. Vérifie dans Render que `DATABASE_URL` pointe vers le projet PostgreSQL Supabase prévu pour la bêta. `REQUIRE_POSTGRES=true` fait échouer le démarrage si cette variable manque ou ne contient pas une URL PostgreSQL. N'utilise pas SQLite sur Render : son disque peut être effacé au redémarrage ou à la mise en veille.
 2. Vérifie les limites de disponibilité et de sauvegarde du plan Supabase choisi. Configure aussi Cloudinary si les photos de profil doivent être utilisées.
 3. Après le déploiement, ouvre `/api/metadonnees`, puis teste une inscription, une connexion, une publication, une demande client et la consultation des demandes par l'artisan.
 4. Préviens les testeurs que la première requête après une période d'inactivité peut attendre environ une minute. Render peut aussi redémarrer une instance gratuite à tout moment.

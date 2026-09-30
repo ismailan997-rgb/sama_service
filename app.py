@@ -8,6 +8,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
 USE_POSTGRES = DATABASE_URL.startswith(('postgres://', 'postgresql://'))
+REQUIRE_POSTGRES = os.environ.get('REQUIRE_POSTGRES', '').strip().lower() == 'true'
+if REQUIRE_POSTGRES and not USE_POSTGRES:
+    raise RuntimeError('DATABASE_URL doit pointer vers PostgreSQL pour ce déploiement.')
 DATABASE = os.environ.get('DATABASE_PATH', 'samaservice.db')
 DEMO_ARTISAN_TELEPHONE = '771234567'
 DEMO_SERVICE_TITLES = (
@@ -464,6 +467,61 @@ def modifier_profil_artisan():
     ''', (artisan_id,)).fetchone()
     conn.close()
     return jsonify({"success": True, "artisan": dict(artisan)})
+
+
+@app.route('/api/artisan/compte', methods=['DELETE'])
+def supprimer_compte_artisan():
+    artisan_id = get_authenticated_artisan_id()
+    if artisan_id is None:
+        return jsonify({"success": False, "message": "Connectez-vous pour supprimer votre compte."}), 401
+
+    data = request.get_json(silent=True) or {}
+    mot_de_passe = data.get('mot_de_passe')
+    if not isinstance(mot_de_passe, str) or not mot_de_passe:
+        return jsonify({"success": False, "message": "Saisissez votre mot de passe pour confirmer."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    artisan = cursor.execute(
+        'SELECT mot_de_passe, photo_public_id FROM artisans WHERE id = ?',
+        (artisan_id,)
+    ).fetchone()
+    if not artisan:
+        conn.close()
+        return jsonify({"success": False, "message": "Compte artisan introuvable."}), 404
+
+    mot_de_passe_db = artisan['mot_de_passe']
+    if mot_de_passe_db.startswith(('scrypt:', 'pbkdf2:')):
+        valide = check_password_hash(mot_de_passe_db, mot_de_passe)
+    else:
+        valide = mot_de_passe_db == mot_de_passe
+    if not valide:
+        conn.close()
+        return jsonify({"success": False, "message": "Mot de passe incorrect."}), 401
+
+    photo_public_id = artisan['photo_public_id']
+    try:
+        cursor.execute('''
+            DELETE FROM demandes
+            WHERE service_id IN (SELECT id FROM services WHERE artisan_id = ?)
+        ''', (artisan_id,))
+        cursor.execute('DELETE FROM services WHERE artisan_id = ?', (artisan_id,))
+        cursor.execute('DELETE FROM artisans WHERE id = ?', (artisan_id,))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        app.logger.exception("Échec de la suppression du compte artisan")
+        conn.close()
+        return jsonify({"success": False, "message": "Le compte n'a pas pu être supprimé."}), 500
+    conn.close()
+
+    warning = None
+    if photo_public_id and not delete_cloudinary_photo(photo_public_id):
+        warning = "Le compte est supprimé, mais la photo n'a pas pu être effacée du stockage."
+    response = {"success": True, "message": "Votre compte et ses données associées ont été supprimés."}
+    if warning:
+        response['warning'] = warning
+    return jsonify(response)
 
 
 @app.route('/api/artisan/photo', methods=['POST'])
