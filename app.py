@@ -4,6 +4,7 @@ import sqlite3
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from itsdangerous import BadSignature, URLSafeTimedSerializer
+from werkzeug.security import generate_password_hash, check_password_hash
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
 USE_POSTGRES = DATABASE_URL.startswith(('postgres://', 'postgresql://'))
@@ -22,14 +23,16 @@ if USE_POSTGRES:
 else:
     INTEGRITY_ERRORS = (sqlite3.IntegrityError,)
 
-try:
-    from werkzeug.security import generate_password_hash, check_password_hash
-    HAS_WERKZEUG = True
-except ImportError:
-    HAS_WERKZEUG = False
-
 app = Flask(__name__)
-CORS(app)
+CORS_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get(
+        'CORS_ORIGINS',
+        'capacitor://localhost,http://localhost,https://localhost'
+    ).split(',')
+    if origin.strip()
+]
+CORS(app, resources={r"/api/*": {"origins": CORS_ORIGINS}})
 MAX_PROFILE_PHOTO_BYTES = 5 * 1024 * 1024
 ALLOWED_PROFILE_PHOTO_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
 app.config['MAX_CONTENT_LENGTH'] = MAX_PROFILE_PHOTO_BYTES + 64 * 1024
@@ -74,11 +77,11 @@ def get_cloudinary_uploader():
     return cloudinary.uploader
 
 
-def create_profile_photo_token(artisan_id):
+def create_artisan_token(artisan_id):
     return profile_photo_serializer.dumps({"artisan_id": int(artisan_id)})
 
 
-def get_authenticated_photo_artisan_id():
+def get_authenticated_artisan_id():
     authorization = request.headers.get('Authorization', '')
     if not authorization.startswith('Bearer '):
         return None
@@ -341,7 +344,7 @@ def inscription_artisan():
     if not nom or not telephone or not mot_de_passe or not metier or not quartier:
         return jsonify({"success": False, "message": "Veuillez remplir tous les champs obligatoires."}), 400
 
-    mdp_stocke = generate_password_hash(mot_de_passe) if HAS_WERKZEUG else mot_de_passe
+    mdp_stocke = generate_password_hash(mot_de_passe)
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -365,7 +368,7 @@ def inscription_artisan():
                 "quartier": quartier,
                 "note": 5.0,
                 "photo_url": None,
-                "photo_token": create_profile_photo_token(artisan_id)
+                "photo_token": create_artisan_token(artisan_id)
             }
         }), 201
     except INTEGRITY_ERRORS:
@@ -389,18 +392,14 @@ def connexion_artisan():
         # Vérification avec hachage ou rétrocompatibilité mot de passe en clair
         mot_de_passe_db = artisan['mot_de_passe']
         valide = False
-        if HAS_WERKZEUG:
-            if mot_de_passe_db.startswith('scrypt:') or mot_de_passe_db.startswith('pbkdf2:'):
-                valide = check_password_hash(mot_de_passe_db, mot_de_passe)
-            else:
-                valide = (mot_de_passe_db == mot_de_passe)
-                if valide:
-                    # Mise à jour avec le hash
-                    nouveau_hash = generate_password_hash(mot_de_passe)
-                    cursor.execute('UPDATE artisans SET mot_de_passe = ? WHERE id = ?', (nouveau_hash, artisan['id']))
-                    conn.commit()
+        if mot_de_passe_db.startswith(('scrypt:', 'pbkdf2:')):
+            valide = check_password_hash(mot_de_passe_db, mot_de_passe)
         else:
             valide = (mot_de_passe_db == mot_de_passe)
+            if valide:
+                nouveau_hash = generate_password_hash(mot_de_passe)
+                cursor.execute('UPDATE artisans SET mot_de_passe = ? WHERE id = ?', (nouveau_hash, artisan['id']))
+                conn.commit()
 
         if valide:
             res_artisan = {
@@ -411,7 +410,7 @@ def connexion_artisan():
                 "quartier": artisan["quartier"],
                 "note": artisan["note"] if "note" in artisan.keys() else 5.0,
                 "photo_url": artisan["photo_url"],
-                "photo_token": create_profile_photo_token(artisan["id"])
+                "photo_token": create_artisan_token(artisan["id"])
             }
             conn.close()
             return jsonify({"success": True, "artisan": res_artisan})
@@ -420,9 +419,56 @@ def connexion_artisan():
     return jsonify({"success": False, "message": "Numéro de téléphone ou mot de passe incorrect."}), 401
 
 
+@app.route('/api/artisan/profil', methods=['PATCH'])
+def modifier_profil_artisan():
+    artisan_id = get_authenticated_artisan_id()
+    if artisan_id is None:
+        return jsonify({"success": False, "message": "Connectez-vous pour modifier votre profil."}), 401
+
+    data = request.get_json(silent=True) or {}
+    fields = ('nom', 'telephone', 'metier', 'quartier')
+    if not all(isinstance(data.get(field), str) for field in fields):
+        return jsonify({"success": False, "message": "Vérifiez les informations du profil."}), 400
+
+    nom = data['nom'].strip()
+    telephone = ''.join(data['telephone'].split())
+    metier = data['metier'].strip()
+    quartier = data['quartier'].strip()
+    metiers_autorises = {metier['nom'] for metier in METIERS_LISTE}
+
+    if not nom or len(nom) > 100 or not telephone or len(telephone) > 20:
+        return jsonify({"success": False, "message": "Le nom ou le téléphone est invalide."}), 400
+    if metier not in metiers_autorises or quartier not in QUARTIERS_DAKAR:
+        return jsonify({"success": False, "message": "Choisissez un métier et un quartier valides."}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            UPDATE artisans
+            SET nom = ?, telephone = ?, metier = ?, quartier = ?
+            WHERE id = ?
+        ''', (nom, telephone, metier, quartier, artisan_id))
+        if cursor.rowcount == 0:
+            conn.close()
+            return jsonify({"success": False, "message": "Compte artisan introuvable."}), 404
+        conn.commit()
+    except INTEGRITY_ERRORS:
+        conn.rollback()
+        conn.close()
+        return jsonify({"success": False, "message": "Ce numéro de téléphone est déjà utilisé."}), 409
+
+    artisan = cursor.execute('''
+        SELECT id, nom, telephone, metier, quartier, note, photo_url
+        FROM artisans WHERE id = ?
+    ''', (artisan_id,)).fetchone()
+    conn.close()
+    return jsonify({"success": True, "artisan": dict(artisan)})
+
+
 @app.route('/api/artisan/photo', methods=['POST'])
 def remplacer_photo_profil():
-    artisan_id = get_authenticated_photo_artisan_id()
+    artisan_id = get_authenticated_artisan_id()
     if artisan_id is None:
         return jsonify({"success": False, "message": "Reconnectez-vous pour modifier votre photo."}), 401
 
@@ -472,7 +518,7 @@ def remplacer_photo_profil():
 
 @app.route('/api/artisan/photo', methods=['DELETE'])
 def supprimer_photo_profil():
-    artisan_id = get_authenticated_photo_artisan_id()
+    artisan_id = get_authenticated_artisan_id()
     if artisan_id is None:
         return jsonify({"success": False, "message": "Reconnectez-vous pour modifier votre photo."}), 401
     if not cloudinary_credentials_configured():
@@ -541,12 +587,14 @@ def lister_services():
 @app.route('/api/services', methods=['POST'])
 def publier_service():
     data = request.json or {}
-    artisan_id = data.get('artisan_id')
+    artisan_id = get_authenticated_artisan_id()
     titre = data.get('titre_service', '').strip()
     description = data.get('description_service', '').strip()
     tarif = data.get('tarif_indicatif', '').strip() or 'Sur devis'
 
-    if not artisan_id or not titre or not description:
+    if artisan_id is None:
+        return jsonify({"success": False, "message": "Reconnectez-vous pour publier un service."}), 401
+    if not titre or not description:
         return jsonify({"success": False, "message": "Titre et description obligatoires."}), 400
 
     conn = get_db_connection()
@@ -561,9 +609,19 @@ def publier_service():
 
 @app.route('/api/services/<int:service_id>', methods=['DELETE'])
 def supprimer_service(service_id):
+    artisan_id = get_authenticated_artisan_id()
+    if artisan_id is None:
+        return jsonify({"success": False, "message": "Reconnectez-vous pour retirer un service."}), 401
+
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('UPDATE services SET actif = 0 WHERE id = ?', (service_id,))
+    cursor.execute(
+        'UPDATE services SET actif = 0 WHERE id = ? AND artisan_id = ?',
+        (service_id, artisan_id)
+    )
+    if cursor.rowcount == 0:
+        conn.close()
+        return jsonify({"success": False, "message": "Service introuvable."}), 404
     conn.commit()
     conn.close()
     return jsonify({"success": True, "message": "Service retiré."})
@@ -581,6 +639,14 @@ def envoyer_demande():
 
     conn = get_db_connection()
     cursor = conn.cursor()
+    service = cursor.execute(
+        'SELECT id FROM services WHERE id = ? AND (actif IS NULL OR actif = 1)',
+        (service_id,)
+    ).fetchone()
+    if not service:
+        conn.close()
+        return jsonify({"success": False, "message": "Cette prestation n'est plus disponible."}), 404
+
     cursor.execute('''
         INSERT INTO demandes (service_id, nom_client, telephone_client, description_besoin, statut)
         VALUES (?, ?, ?, ?, 'Nouveau')
@@ -591,6 +657,12 @@ def envoyer_demande():
 
 @app.route('/api/artisan/<int:artisan_id>/demandes', methods=['GET'])
 def mes_demandes(artisan_id):
+    authenticated_id = get_authenticated_artisan_id()
+    if authenticated_id is None:
+        return jsonify({"success": False, "message": "Connectez-vous pour consulter vos demandes."}), 401
+    if authenticated_id != artisan_id:
+        return jsonify({"success": False, "message": "Accès interdit."}), 403
+
     conn = get_db_connection()
     cursor = conn.cursor()
     demandes = cursor.execute('''
@@ -605,6 +677,12 @@ def mes_demandes(artisan_id):
 
 @app.route('/api/artisan/<int:artisan_id>/services', methods=['GET'])
 def mes_services_artisan(artisan_id):
+    authenticated_id = get_authenticated_artisan_id()
+    if authenticated_id is None:
+        return jsonify({"success": False, "message": "Connectez-vous pour consulter vos services."}), 401
+    if authenticated_id != artisan_id:
+        return jsonify({"success": False, "message": "Accès interdit."}), 403
+
     conn = get_db_connection()
     cursor = conn.cursor()
     services = cursor.execute('''
@@ -617,10 +695,30 @@ def mes_services_artisan(artisan_id):
 
 @app.route('/api/demandes/<int:demande_id>/statut', methods=['PATCH'])
 def changer_statut_demande(demande_id):
+    artisan_id = get_authenticated_artisan_id()
+    if artisan_id is None:
+        return jsonify({"success": False, "message": "Connectez-vous pour modifier une demande."}), 401
+
     data = request.json or {}
-    nouveau_statut = data.get('statut', 'Nouveau')
+    nouveau_statut = data.get('statut')
+    if nouveau_statut not in {'Nouveau', 'Contacté', 'Terminé'}:
+        return jsonify({"success": False, "message": "Statut invalide."}), 400
+
     conn = get_db_connection()
     cursor = conn.cursor()
+    demande = cursor.execute('''
+        SELECT s.artisan_id
+        FROM demandes d
+        JOIN services s ON s.id = d.service_id
+        WHERE d.id = ?
+    ''', (demande_id,)).fetchone()
+    if not demande:
+        conn.close()
+        return jsonify({"success": False, "message": "Demande introuvable."}), 404
+    if demande['artisan_id'] != artisan_id:
+        conn.close()
+        return jsonify({"success": False, "message": "Accès interdit."}), 403
+
     cursor.execute('UPDATE demandes SET statut = ? WHERE id = ?', (nouveau_statut, demande_id))
     conn.commit()
     conn.close()

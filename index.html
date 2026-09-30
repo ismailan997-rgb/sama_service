@@ -245,7 +245,6 @@
                                 <div>
                                     <div class="flex items-center gap-1.5">
                                         <h2 class="text-sm font-extrabold text-white" id="dash-nom">Artisan Pro</h2>
-                                        <span class="bg-emerald-500 text-white text-[9px] px-1.5 py-0.2 rounded font-bold">Vérifié</span>
                                     </div>
                                     <p class="text-xs text-emerald-200" id="dash-metier">Métier</p>
                                     <p class="text-[11px] text-white/70" id="dash-quartier">📍 Dakar</p>
@@ -261,10 +260,37 @@
                             <button type="button" onclick="document.getElementById('dash-photo-file').click()" class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-2 text-[11px] font-bold text-white hover:bg-white/25">
                                 <i class="fa-solid fa-camera"></i> Changer la photo
                             </button>
+                            <button type="button" onclick="ouvrirEditionProfil()" class="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-2 text-[11px] font-bold text-white hover:bg-white/25">
+                                <i class="fa-solid fa-pen-to-square"></i> Modifier le profil
+                            </button>
                             <button type="button" id="dash-photo-delete" onclick="supprimerPhotoProfil()" class="hidden inline-flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-2 text-[11px] font-bold text-white hover:bg-red-500/35">
                                 <i class="fa-solid fa-trash"></i> Supprimer
                             </button>
                         </div>
+
+                        <form id="form-edit-profile" onsubmit="modifierProfil(event)" class="hidden mt-3 rounded-xl bg-white p-3 text-slate-700 space-y-2.5">
+                            <div>
+                                <label for="edit-profile-name" class="block text-[11px] font-bold mb-1">Nom / Nom de l'atelier</label>
+                                <input id="edit-profile-name" type="text" maxlength="100" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label for="edit-profile-phone" class="block text-[11px] font-bold mb-1">Téléphone de connexion</label>
+                                <input id="edit-profile-phone" type="tel" maxlength="20" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                            </div>
+                            <div>
+                                <label for="edit-profile-trade" class="block text-[11px] font-bold mb-1">Métier principal</label>
+                                <select id="edit-profile-trade" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"></select>
+                            </div>
+                            <div>
+                                <label for="edit-profile-neighborhood" class="block text-[11px] font-bold mb-1">Quartier ou commune</label>
+                                <select id="edit-profile-neighborhood" required class="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"></select>
+                            </div>
+                            <p id="edit-profile-error" class="hidden text-[11px] font-semibold text-red-600" role="alert"></p>
+                            <div class="flex gap-2">
+                                <button type="submit" class="flex-1 rounded-lg bg-emerald-700 px-3 py-2 text-[11px] font-bold text-white hover:bg-emerald-800">Enregistrer</button>
+                                <button type="button" onclick="annulerEditionProfil()" class="rounded-lg border border-slate-300 px-3 py-2 text-[11px] font-bold text-slate-700 hover:bg-slate-50">Annuler</button>
+                            </div>
+                        </form>
 
                         <div class="mt-4 pt-3 border-t border-white/15 grid grid-cols-2 gap-2 text-center">
                             <div class="bg-white/10 rounded-xl p-2">
@@ -476,6 +502,16 @@
     <!-- ==================== LOGIQUE JAVASCRIPT ==================== -->
     <script>
         const API_URL = (window.SAMASERVICE_API_URL || "/api").replace(/\/+$/, "");
+
+        function escapeHTML(value) {
+            return String(value ?? '').replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[character]);
+        }
         
         // État de l'application
         let artisanConnecte = JSON.parse(localStorage.getItem('samaservice_artisan')) || null;
@@ -546,6 +582,13 @@
                         return option;
                     }));
                 }
+                const editMetierSelect = document.getElementById('edit-profile-trade');
+                if (regMetierSelect && editMetierSelect) {
+                    editMetierSelect.replaceChildren(...Array.from(
+                        regMetierSelect.options,
+                        option => option.cloneNode(true)
+                    ));
+                }
 
                 const categoriesScroll = document.getElementById('categories-scroll');
                 const allMetiersButton = categoriesScroll?.querySelector('[data-metier="Tous"]');
@@ -578,6 +621,13 @@
                 const regQuartierSelect = document.getElementById('reg-quartier');
                 if (regQuartierSelect) {
                     regQuartierSelect.innerHTML = listeQuartiersDakar.map(q => `<option value="${q}">${q}</option>`).join('');
+                }
+                const editQuartierSelect = document.getElementById('edit-profile-neighborhood');
+                if (regQuartierSelect && editQuartierSelect) {
+                    editQuartierSelect.replaceChildren(...Array.from(
+                        regQuartierSelect.options,
+                        option => option.cloneNode(true)
+                    ));
                 }
 
                 // Préparer la liste du modal quartier
@@ -685,6 +735,8 @@
                     const waNum = nettoyerNumeroSenegal(s.telephone_artisan);
                     const waMsg = encodeURIComponent(`Salam ${s.nom_artisan}, j'ai vu votre prestation "${s.titre_service}" sur l'application SamaService. Êtes-vous disponible ?`);
                     const waUrl = `https://wa.me/${waNum}?text=${waMsg}`;
+                    const artisanName = escapeHTML(s.nom_artisan);
+                    const serviceTitle = escapeHTML(s.titre_service);
 
                     return `
                         <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200/80 space-y-3 transition hover:border-emerald-500">
@@ -692,35 +744,34 @@
                             <div class="flex items-center justify-between">
                                 <div class="flex items-center space-x-2.5">
                                     <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-extrabold">
-                                        ${s.nom_artisan.substring(0, 2).toUpperCase()}
+                                        ${artisanName.substring(0, 2).toUpperCase()}
                                     </div>
                                     <div>
                                         <h4 class="text-xs font-bold text-slate-900 flex items-center gap-1">
-                                            ${s.nom_artisan}
-                                            <i class="fa-solid fa-circle-check text-emerald-600 text-[10px]" title="Artisan vérifié"></i>
+                                            ${artisanName}
                                         </h4>
                                         <div class="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
-                                            <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-semibold">${s.metier}</span>
+                                            <span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700 font-semibold">${escapeHTML(s.metier)}</span>
                                             <span>•</span>
-                                            <span>📍 ${s.quartier}</span>
+                                            <span>📍 ${escapeHTML(s.quartier)}</span>
                                         </div>
                                     </div>
                                 </div>
                                 <div class="text-right">
-                                    <span class="text-xs font-extrabold text-emerald-700 block">${s.tarif_indicatif || 'Sur devis'}</span>
+                                    <span class="text-xs font-extrabold text-emerald-700 block">${escapeHTML(s.tarif_indicatif || 'Sur devis')}</span>
                                     <span class="text-[9px] text-amber-500 font-bold"><i class="fa-solid fa-star"></i> 5.0</span>
                                 </div>
                             </div>
 
                             <!-- Contenu prestation -->
                             <div>
-                                <h3 class="text-xs font-extrabold text-slate-800">${s.titre_service}</h3>
-                                <p class="text-[11px] text-slate-600 leading-relaxed mt-0.5">${s.description_service}</p>
+                                <h3 class="text-xs font-extrabold text-slate-800">${serviceTitle}</h3>
+                                <p class="text-[11px] text-slate-600 leading-relaxed mt-0.5">${escapeHTML(s.description_service)}</p>
                             </div>
 
                             <!-- Boutons d'action rapides -->
                             <div class="pt-1 flex items-center gap-2">
-                                <button onclick="ouvrirModalDemande(${s.id}, '${s.titre_service.replace(/'/g, "\\'")}')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition">
+                                <button type="button" data-action="request-service" data-service-id="${escapeHTML(s.id)}" data-service-title="${serviceTitle}" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition">
                                     <i class="fa-solid fa-paper-plane text-[10px]"></i>
                                     Commander
                                 </button>
@@ -736,6 +787,13 @@
                         </div>
                     `;
                 }).join('');
+
+                container.querySelectorAll('[data-action="request-service"]').forEach(button => {
+                    button.addEventListener('click', () => ouvrirModalDemande(
+                        Number(button.dataset.serviceId),
+                        button.dataset.serviceTitle
+                    ));
+                });
 
             } catch (e) {
                 container.innerHTML = `
@@ -931,6 +989,61 @@
             }
         }
 
+        function ouvrirEditionProfil() {
+            if (!artisanConnecte) return;
+            document.getElementById('edit-profile-name').value = artisanConnecte.nom || '';
+            document.getElementById('edit-profile-phone').value = artisanConnecte.telephone || '';
+            document.getElementById('edit-profile-trade').value = artisanConnecte.metier || '';
+            document.getElementById('edit-profile-neighborhood').value = artisanConnecte.quartier || '';
+            document.getElementById('edit-profile-error').classList.add('hidden');
+            document.getElementById('form-edit-profile').classList.remove('hidden');
+        }
+
+        function annulerEditionProfil() {
+            document.getElementById('form-edit-profile').classList.add('hidden');
+        }
+
+        async function modifierProfil(event) {
+            event.preventDefault();
+            if (!artisanConnecte?.photo_token) return;
+
+            const error = document.getElementById('edit-profile-error');
+            error.classList.add('hidden');
+            const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}/artisan/profil`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${artisanConnecte.photo_token}`
+                    },
+                    body: JSON.stringify({
+                        nom: document.getElementById('edit-profile-name').value.trim(),
+                        telephone: document.getElementById('edit-profile-phone').value.trim(),
+                        metier: document.getElementById('edit-profile-trade').value,
+                        quartier: document.getElementById('edit-profile-neighborhood').value
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.message || 'Le profil n’a pas pu être mis à jour.');
+                }
+
+                artisanConnecte = { ...artisanConnecte, ...data.artisan };
+                localStorage.setItem('samaservice_artisan', JSON.stringify(artisanConnecte));
+                annulerEditionProfil();
+                verifierSession();
+                afficherToast('Profil mis à jour.');
+            } catch (requestError) {
+                error.textContent = requestError.message;
+                error.classList.remove('hidden');
+            } finally {
+                submitButton.disabled = false;
+            }
+        }
+
         function verifierSession() {
             const zoneAuth = document.getElementById('artisan-auth');
             const zoneDash = document.getElementById('artisan-dashboard');
@@ -1067,7 +1180,9 @@
             if (!artisanConnecte) return;
             const container = document.getElementById('container-mes-demandes');
             try {
-                const res = await fetch(`${API_URL}/artisan/${artisanConnecte.id}/demandes`);
+                const res = await fetch(`${API_URL}/artisan/${artisanConnecte.id}/demandes`, {
+                    headers: { 'Authorization': `Bearer ${artisanConnecte.photo_token}` }
+                });
                 const json = await res.json();
                 const demandes = json.data || [];
 
@@ -1103,15 +1218,15 @@
                     return `
                         <div class="bg-white rounded-xl p-3.5 border border-slate-200 shadow-sm space-y-2.5">
                             <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${statutBadgeClass}">${statut}</span>
-                                <span class="text-[10px] text-slate-400">${d.date_creation || ''}</span>
+                                <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full ${statutBadgeClass}">${escapeHTML(statut)}</span>
+                                <span class="text-[10px] text-slate-400">${escapeHTML(d.date_creation || '')}</span>
                             </div>
                             <div>
-                                <h4 class="text-xs font-extrabold text-slate-800">${d.titre_service}</h4>
-                                <p class="text-[11px] text-slate-600 mt-0.5 italic">« ${d.description_besoin} »</p>
+                                <h4 class="text-xs font-extrabold text-slate-800">${escapeHTML(d.titre_service)}</h4>
+                                <p class="text-[11px] text-slate-600 mt-0.5 italic">« ${escapeHTML(d.description_besoin)} »</p>
                             </div>
                             <div class="pt-1 border-t border-slate-100 flex items-center justify-between">
-                                <span class="text-xs font-bold text-slate-700">Client: ${d.nom_client}</span>
+                                <span class="text-xs font-bold text-slate-700">Client: ${escapeHTML(d.nom_client)}</span>
                                 <div class="flex items-center gap-1.5">
                                     <a href="https://wa.me/${cleanCliTel}?text=Salam%20${encodeURIComponent(d.nom_client)}" target="_blank" class="w-7 h-7 rounded-lg bg-green-500 text-white flex items-center justify-center text-xs">
                                         <i class="fa-brands fa-whatsapp"></i>
@@ -1140,7 +1255,10 @@
             try {
                 await fetch(`${API_URL}/demandes/${demandeId}/statut`, {
                     method: 'PATCH',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${artisanConnecte.photo_token}`
+                    },
                     body: JSON.stringify({ statut: statut })
                 });
                 afficherToast("Statut mis à jour !");
@@ -1154,7 +1272,9 @@
             if (!artisanConnecte) return;
             const container = document.getElementById('container-mes-services');
             try {
-                const res = await fetch(`${API_URL}/artisan/${artisanConnecte.id}/services`);
+                const res = await fetch(`${API_URL}/artisan/${artisanConnecte.id}/services`, {
+                    headers: { 'Authorization': `Bearer ${artisanConnecte.photo_token}` }
+                });
                 const json = await res.json();
                 const services = json.data || [];
 
@@ -1172,8 +1292,8 @@
                 container.innerHTML = services.map(s => `
                     <div class="bg-white rounded-xl p-3.5 border border-slate-200 shadow-sm flex items-center justify-between">
                         <div>
-                            <h4 class="text-xs font-bold text-slate-800">${s.titre_service}</h4>
-                            <p class="text-[11px] text-emerald-600 font-semibold">${s.tarif_indicatif || 'Sur devis'}</p>
+                            <h4 class="text-xs font-bold text-slate-800">${escapeHTML(s.titre_service)}</h4>
+                            <p class="text-[11px] text-emerald-600 font-semibold">${escapeHTML(s.tarif_indicatif || 'Sur devis')}</p>
                         </div>
                         <button onclick="supprimerService(${s.id})" class="text-red-500 hover:text-red-700 p-2 text-xs font-bold" title="Supprimer">
                             <i class="fa-solid fa-trash-can"></i>
@@ -1197,9 +1317,11 @@
             try {
                 const res = await fetch(`${API_URL}/services`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${artisanConnecte.photo_token}`
+                    },
                     body: JSON.stringify({
-                        artisan_id: artisanConnecte.id,
                         titre_service: titre,
                         description_service: desc,
                         tarif_indicatif: tarif
@@ -1223,7 +1345,10 @@
         async function supprimerService(id) {
             if (!confirm("Voulez-vous retirer cette prestation de l'application ?")) return;
             try {
-                await fetch(`${API_URL}/services/${id}`, { method: 'DELETE' });
+                await fetch(`${API_URL}/services/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${artisanConnecte.photo_token}` }
+                });
                 afficherToast("Prestation retirée.");
                 chargerMesServices();
             } catch (e) {

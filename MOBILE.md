@@ -14,7 +14,20 @@ Le backend utilise SQLite en local et PostgreSQL quand la variable `DATABASE_URL
 
 Les tables sont créées au démarrage sans ajouter d'annonces de démonstration. Au prochain redémarrage, les deux anciennes annonces de Modou Dépannage Auto seront désactivées; les demandes liées restent conservées. La base SQLite du PC n'est pas copiée automatiquement : exporte-la avant le déploiement si elle contient des comptes ou des demandes à conserver.
 
-Le Blueprint utilise le plan gratuit Render pour faciliter les essais; le serveur peut se mettre en veille. Supabase conserve ses propres conditions de disponibilité et de sauvegarde, à vérifier dans le plan choisi.
+L'API limite CORS aux origines Capacitor locales définies par `CORS_ORIGINS`. Si une interface web est hébergée sur un autre domaine, ajoute son origine HTTPS exacte à cette variable dans Render, séparée par une virgule. CORS ne remplace pas l'authentification de l'API.
+
+Le Blueprint utilise le plan gratuit Render pour faciliter les essais; le serveur peut se mettre en veille. Il faut choisir un plan sans mise en veille avant un lancement où la disponibilité est attendue. Supabase conserve ses propres conditions de disponibilité et de sauvegarde, à vérifier dans le plan choisi.
+
+### Lancement d'une bêta limitée
+
+Pour tester gratuitement, garde `plan: free` et limite d'abord l'accès à un petit groupe. Avant de partager le lien :
+
+1. Vérifie dans Render que `DATABASE_URL` pointe vers le projet PostgreSQL Supabase prévu pour la bêta. N'utilise pas SQLite sur Render : son disque peut être effacé au redémarrage ou à la mise en veille.
+2. Vérifie les limites de disponibilité et de sauvegarde du plan Supabase choisi. Configure aussi Cloudinary si les photos de profil doivent être utilisées.
+3. Après le déploiement, ouvre `/api/metadonnees`, puis teste une inscription, une connexion, une publication, une demande client et la consultation des demandes par l'artisan.
+4. Préviens les testeurs que la première requête après une période d'inactivité peut attendre environ une minute. Render peut aussi redémarrer une instance gratuite à tout moment.
+
+Un ping externe toutes les 10 minutes peut éviter la mise en veille due à l'inactivité, mais ne garantit pas que l'instance reste disponible. Un cron Render est facturé selon son temps d'exécution; il n'est pas ajouté au Blueprint gratuit. Pour une bêta sans frais imprévus, accepte plutôt le réveil à froid.
 
 ## Photos de profil Cloudinary
 

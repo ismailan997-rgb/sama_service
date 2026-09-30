@@ -11,6 +11,8 @@ services:
         sync: false
       - key: FLASK_SECRET_KEY
         generateValue: true
+      - key: CORS_ORIGINS
+        value: "capacitor://localhost,http://localhost,https://localhost"
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
